@@ -1,0 +1,37 @@
+name: Scribe Galen Portno
+aliases:
+- Galen
+- Portno
+- The Tinkerer
+- Scribe Galen
+affiliation: Brotherhood
+special:
+  strength: 4
+  perception: 5
+  endurance: 5
+  charisma: 5
+  intelligence: 9
+  agility: 3
+  luck: 2
+skills:
+- Science
+- Repair
+- Medicine
+- Speech
+background: Galen spent decades as a Brotherhood scribe, more comfortable with a soldering
+  iron than a rifle. His T-60 power armor is a testament to his engineering prowess,
+  extensively modified and personalized over the years. Now in his twilight years,
+  he serves the Brotherhood best as a stationary resource rather than a field operative.
+personality_traits:
+- Patient mentor figure with decades of knowledge
+- Meticulous perfectionist in technical matters
+- Dry wit and sardonic humor about his age
+- Protective of his custom-built equipment
+inventory:
+- Laser Pistol
+- T-60 Power Armor (Modified, Biometric Lock)
+- Scribe Robes
+- Bottle Caps x75
+- Toolbelt with Assorted Tools
+- Technical Manual - Energy Weapons
+- Stimpak x3

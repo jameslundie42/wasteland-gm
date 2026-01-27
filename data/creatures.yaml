@@ -1,0 +1,508 @@
+# Creature Templates for Wasteland GM
+# Each template defines an archetype that can be spawned into combat
+
+templates:
+  # === RAIDERS ===
+  Raider:
+    category: humanoid
+    description: "Common wasteland bandits. Poorly equipped but dangerous in numbers."
+    special:
+      base:
+        strength: 5
+        perception: 5
+        endurance: 5
+        charisma: 3
+        intelligence: 4
+        agility: 5
+        luck: 5
+      variance: 2
+    level:
+      base: 1
+      variance: 2
+    skills:
+      - Guns
+      - Melee
+    affiliation: Raiders
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "5-25"
+      chance:
+        - item: "10mm Pistol"
+          chance: 0.3
+        - item: "Pipe Rifle"
+          chance: 0.2
+        - item: "Stimpak"
+          chance: 0.15
+        - item: "10mm Ammo"
+          quantity: "5-15"
+          chance: 0.4
+    name_patterns:
+      - "Raider #{n}"
+
+  Raider Psycho:
+    category: humanoid
+    description: "Drug-fueled raider berserker. Hits hard, ignores pain."
+    special:
+      base:
+        strength: 7
+        perception: 4
+        endurance: 7
+        charisma: 2
+        intelligence: 3
+        agility: 6
+        luck: 4
+      variance: 1
+    level:
+      base: 3
+      variance: 2
+    skills:
+      - Melee
+      - Unarmed
+    affiliation: Raiders
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "10-40"
+        - item: "Psycho"
+          quantity: "1-2"
+      chance:
+        - item: "Super Sledge"
+          chance: 0.2
+        - item: "Combat Knife"
+          chance: 0.4
+        - item: "Buffout"
+          chance: 0.3
+    name_patterns:
+      - "Raider Psycho #{n}"
+
+  Raider Boss:
+    category: humanoid
+    description: "Raider leader. Better equipped and more dangerous."
+    special:
+      base:
+        strength: 6
+        perception: 6
+        endurance: 6
+        charisma: 5
+        intelligence: 5
+        agility: 6
+        luck: 6
+      variance: 1
+    level:
+      base: 5
+      variance: 3
+    skills:
+      - Guns
+      - Melee
+      - Speech
+    affiliation: Raiders
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "50-150"
+        - item: "Combat Rifle"
+          quantity: "1"
+      chance:
+        - item: "Combat Armor"
+          chance: 0.5
+        - item: "Stimpak"
+          quantity: "2-4"
+          chance: 0.7
+        - item: "Med-X"
+          chance: 0.4
+    name_patterns:
+      - "Raider Boss"
+      - "Raider Veteran #{n}"
+
+  # === GHOULS ===
+  Feral Ghoul:
+    category: humanoid
+    description: "Mindless irradiated humans. Fast and relentless."
+    special:
+      base:
+        strength: 6
+        perception: 7
+        endurance: 8
+        charisma: 1
+        intelligence: 1
+        agility: 7
+        luck: 3
+      variance: 2
+    level:
+      base: 2
+      variance: 3
+    skills:
+      - Unarmed
+    affiliation: Feral
+    loot_table:
+      guaranteed: []
+      chance:
+        - item: "Bottle Caps"
+          quantity: "1-10"
+          chance: 0.3
+        - item: "Rad-X"
+          chance: 0.1
+    name_patterns:
+      - "Feral Ghoul #{n}"
+
+  Glowing One:
+    category: humanoid
+    description: "Highly irradiated ghoul that emits deadly radiation."
+    special:
+      base:
+        strength: 7
+        perception: 8
+        endurance: 10
+        charisma: 1
+        intelligence: 2
+        agility: 6
+        luck: 4
+      variance: 1
+    level:
+      base: 8
+      variance: 4
+    skills:
+      - Unarmed
+    affiliation: Feral
+    loot_table:
+      guaranteed:
+        - item: "Glowing Blood Pack"
+          quantity: "1"
+      chance:
+        - item: "Rad-Away"
+          chance: 0.3
+        - item: "Nuclear Material"
+          chance: 0.4
+    name_patterns:
+      - "Glowing One #{n}"
+
+  # === SUPER MUTANTS ===
+  Super Mutant:
+    category: humanoid
+    description: "FEV-mutated humans. Strong, tough, and aggressive."
+    special:
+      base:
+        strength: 9
+        perception: 5
+        endurance: 8
+        charisma: 2
+        intelligence: 3
+        agility: 4
+        luck: 4
+      variance: 2
+    level:
+      base: 5
+      variance: 3
+    skills:
+      - Melee
+      - Guns
+    affiliation: Super Mutants
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "20-50"
+      chance:
+        - item: "Hunting Rifle"
+          chance: 0.4
+        - item: "Super Sledge"
+          chance: 0.3
+        - item: "Stimpak"
+          quantity: "1-2"
+          chance: 0.3
+    name_patterns:
+      - "Super Mutant #{n}"
+
+  Super Mutant Brute:
+    category: humanoid
+    description: "Larger, stronger super mutant variant."
+    special:
+      base:
+        strength: 10
+        perception: 4
+        endurance: 10
+        charisma: 1
+        intelligence: 2
+        agility: 3
+        luck: 3
+      variance: 1
+    level:
+      base: 10
+      variance: 3
+    skills:
+      - Melee
+      - Unarmed
+    affiliation: Super Mutants
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "40-80"
+        - item: "Super Sledge"
+          quantity: "1"
+      chance:
+        - item: "Stimpak"
+          quantity: "2-4"
+          chance: 0.5
+    name_patterns:
+      - "Super Mutant Brute #{n}"
+
+  # === CREATURES ===
+  Deathclaw:
+    category: deathclaw
+    description: "Apex predator of the wasteland. Extremely dangerous."
+    special:
+      base:
+        strength: 10
+        perception: 8
+        endurance: 10
+        charisma: 1
+        intelligence: 3
+        agility: 9
+        luck: 5
+      variance: 1
+    level:
+      base: 15
+      variance: 5
+    skills:
+      - Unarmed
+    affiliation: Wildlife
+    body_parts:
+      head:
+        hit_chance_modifier: -25
+        damage_multiplier: 2.5
+      torso:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      left arm:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      right arm:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      left leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      right leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      tail:
+        hit_chance_modifier: -15
+        damage_multiplier: 0.5
+    loot_table:
+      guaranteed:
+        - item: "Deathclaw Hand"
+          quantity: "2"
+      chance:
+        - item: "Deathclaw Egg"
+          chance: 0.2
+    name_patterns:
+      - "Deathclaw #{n}"
+
+  Radroach:
+    category: insect
+    description: "Giant irradiated cockroach. Weak but numerous."
+    special:
+      base:
+        strength: 2
+        perception: 4
+        endurance: 3
+        charisma: 1
+        intelligence: 1
+        agility: 6
+        luck: 3
+      variance: 1
+    level:
+      base: 1
+      variance: 1
+    skills: []
+    affiliation: Wildlife
+    body_parts:
+      head:
+        hit_chance_modifier: -15
+        damage_multiplier: 2.0
+      thorax:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      abdomen:
+        hit_chance_modifier: 5
+        damage_multiplier: 1.5
+    loot_table:
+      guaranteed: []
+      chance:
+        - item: "Radroach Meat"
+          chance: 0.5
+    name_patterns:
+      - "Radroach #{n}"
+
+  Bloatfly:
+    category: insect
+    description: "Mutated fly that spits acidic projectiles."
+    special:
+      base:
+        strength: 2
+        perception: 6
+        endurance: 2
+        charisma: 1
+        intelligence: 1
+        agility: 8
+        luck: 3
+      variance: 1
+    level:
+      base: 1
+      variance: 2
+    skills: []
+    affiliation: Wildlife
+    body_parts:
+      head:
+        hit_chance_modifier: -20
+        damage_multiplier: 2.0
+      thorax:
+        hit_chance_modifier: -5
+        damage_multiplier: 1.0
+      abdomen:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.5
+    loot_table:
+      guaranteed: []
+      chance:
+        - item: "Bloatfly Gland"
+          chance: 0.4
+    name_patterns:
+      - "Bloatfly #{n}"
+
+  Mole Rat:
+    category: beast
+    description: "Burrowing mutant rodent. Attacks in packs."
+    special:
+      base:
+        strength: 4
+        perception: 6
+        endurance: 4
+        charisma: 1
+        intelligence: 2
+        agility: 7
+        luck: 4
+      variance: 2
+    level:
+      base: 2
+      variance: 2
+    skills:
+      - Unarmed
+    affiliation: Wildlife
+    body_parts:
+      head:
+        hit_chance_modifier: -15
+        damage_multiplier: 2.0
+      body:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      front left leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      front right leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      rear left leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      rear right leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+    loot_table:
+      guaranteed: []
+      chance:
+        - item: "Mole Rat Meat"
+          chance: 0.6
+        - item: "Mole Rat Teeth"
+          chance: 0.3
+    name_patterns:
+      - "Mole Rat #{n}"
+
+  # === ROBOTS ===
+  Protectron:
+    category: robot
+    description: "Pre-war security robot. Slow but durable."
+    special:
+      base:
+        strength: 6
+        perception: 6
+        endurance: 8
+        charisma: 1
+        intelligence: 4
+        agility: 2
+        luck: 3
+      variance: 1
+    level:
+      base: 3
+      variance: 2
+    skills:
+      - Guns
+    affiliation: Robot
+    body_parts:
+      head:
+        hit_chance_modifier: -10
+        damage_multiplier: 1.5
+      torso:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      left arm:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      right arm:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      left leg:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      right leg:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      combat inhibitor:
+        hit_chance_modifier: -25
+        damage_multiplier: 3.0
+    loot_table:
+      guaranteed:
+        - item: "Scrap Metal"
+          quantity: "2-5"
+      chance:
+        - item: "Fusion Cell"
+          quantity: "5-15"
+          chance: 0.5
+        - item: "Circuitry"
+          chance: 0.3
+    name_patterns:
+      - "Protectron #{n}"
+
+  # === SETTLERS/CIVILIANS ===
+  Settler:
+    category: humanoid
+    description: "Wasteland civilian. Not a threat unless provoked."
+    special:
+      base:
+        strength: 4
+        perception: 5
+        endurance: 4
+        charisma: 5
+        intelligence: 5
+        agility: 4
+        luck: 5
+      variance: 2
+    level:
+      base: 1
+      variance: 2
+    skills:
+      - Survival
+      - Repair
+    affiliation: Settlers
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "5-20"
+      chance:
+        - item: "Purified Water"
+          chance: 0.3
+        - item: "Food"
+          chance: 0.4
+    name_patterns:
+      - "Settler #{n}"
+      - "Wastelander #{n}"

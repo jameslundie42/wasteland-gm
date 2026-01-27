@@ -1,0 +1,59 @@
+# Perks Quick Reference
+
+## Available Perks (17 total)
+
+### Combat (5 perks)
+- Bloody Mess (15% damage bonus)
+- Sharpshooter (20% ranged accuracy)
+- Melee Master (25% melee damage)
+- Iron Fist (15% unarmed damage)
+- Evasion (10% dodge chance)
+
+### Survival (4 perks)
+- Rad Resistance (50% rad resistance)
+- Survival Instinct (25% environmental damage reduction)
+- Chemist (25% chem potency bonus)
+- Scavenger (25% more items from loot)
+
+### Dialogue (2 perks)
+- Smooth Talker (10% speech bonus)
+- Honest Trade (25% better prices)
+
+### Utility (4 perks)
+- Fast Learner (10% XP bonus)
+- Technician (20% technical skills bonus)
+- Lucky (1 luck bonus)
+- Night Eyes (see in darkness)
+
+### Faction (2 perks)
+- Ranger (wasteland rangers reputation)
+- Smooth Criminal (criminal underworld reputation)
+
+## Files Modified/Created
+1. **character.py** - Updated Character class with perk methods
+2. **data/perks.yaml** - New file with all perk definitions
+3. **PERKS_DOCUMENTATION.md** - Detailed documentation
+
+## Character YAML Example
+```yaml
+name: Example Character
+special:
+  strength: 8
+  perception: 7
+  endurance: 7
+  charisma: 6
+  intelligence: 6
+  agility: 7
+  luck: 5
+skills:
+  - Guns
+  - Melee
+  - Medicine
+perks:
+  - Bloody Mess
+  - Fast Learner
+background: "A wasteland survivor"
+personality_traits:
+  - Brave
+  - Clever
+```

@@ -1,0 +1,32 @@
+name: Jack the Trader
+aliases:
+  - Jack
+  - Trader
+affiliation: Traders Guild
+special:
+  strength: 5
+  perception: 6
+  endurance: 4
+  charisma: 7
+  intelligence: 6
+  agility: 5
+  luck: 7
+skills:
+  - Barter
+  - Speech
+  - Sneak
+background: >-
+  A traveling merchant who roams between settlements selling scavenged goods.
+  Knows more than he lets on about the local raider gangs. Always looking for
+  an angle.
+personality_traits:
+  - Fast-talking and persuasive
+  - Deflects personal questions with humor
+  - Loyal to paying customers
+  - Nervous around authority
+inventory:
+  - 10mm Pistol
+  - Stimpak x5
+  - Purified Water x4
+  - Rad-Away x3
+  - Bottle Caps x500

@@ -1,0 +1,55 @@
+# Skills and their associated SPECIAL stats
+# Bonus = skill_rank + SPECIAL_modifier
+# SPECIAL modifier = (stat - 5) for stats 1-10
+
+skills:
+  # Charisma-based
+  Barter:
+    stat: charisma
+    description: "Negotiate prices and trade deals"
+  Speech:
+    stat: charisma
+    description: "Persuade, intimidate, or deceive"
+
+  # Intelligence-based
+  Medicine:
+    stat: intelligence
+    description: "Heal wounds and treat conditions"
+  Science:
+    stat: intelligence
+    description: "Hack terminals, craft chems"
+  Repair:
+    stat: intelligence
+    description: "Fix weapons, armor, and machines"
+
+  # Perception-based
+  Lockpick:
+    stat: perception
+    description: "Open locked containers and doors"
+  Survival:
+    stat: perception
+    description: "Track, forage, and navigate wilderness"
+
+  # Agility-based
+  Sneak:
+    stat: agility
+    description: "Move unseen and unheard"
+  Guns:
+    stat: agility
+    description: "Firearms accuracy"
+  Melee:
+    stat: agility
+    description: "Close combat effectiveness"
+
+  # Strength-based
+  Unarmed:
+    stat: strength
+    description: "Hand-to-hand combat"
+
+  # Endurance-based
+  # (none by default)
+
+  # Luck-based
+  Gambling:
+    stat: luck
+    description: "Games of chance"

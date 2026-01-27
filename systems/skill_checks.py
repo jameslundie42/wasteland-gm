@@ -11,7 +11,94 @@ Core Mechanics:
 - Extra successes beyond difficulty generate Action Points
 """
 
+import yaml
+from pathlib import Path
 from systems.dice_roller import get_dice_roller
+
+
+class SkillDatabase:
+    """Loads and provides access to skills and actions data."""
+
+    _instance = None
+
+    def __init__(self):
+        data_dir = Path(__file__).parent.parent / "data"
+
+        with open(data_dir / "skills.yaml", "r") as f:
+            self._skills = yaml.safe_load(f)["skills"]
+
+        with open(data_dir / "actions.yaml", "r") as f:
+            self._actions = yaml.safe_load(f)["actions"]
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+    def get_skill(self, skill_name):
+        """Get skill data by name (case-insensitive)."""
+        for name, data in self._skills.items():
+            if name.lower() == skill_name.lower():
+                return {"name": name, **data}
+        return None
+
+    def get_action(self, action_name):
+        """Get action data by name (case-insensitive)."""
+        for name, data in self._actions.items():
+            if name.lower() == action_name.lower():
+                return {"name": name, **data}
+        return None
+
+    def get_skills_for_action(self, action_name):
+        """Get list of applicable skills for an action."""
+        action = self.get_action(action_name)
+        if action:
+            return action.get("skills", [])
+        return []
+
+    def get_stat_for_skill(self, skill_name):
+        """Get the SPECIAL stat associated with a skill."""
+        skill = self.get_skill(skill_name)
+        if skill:
+            return skill.get("stat")
+        return None
+
+
+def prompt_skill_choice(action_name, available_skills, character=None):
+    """
+    Prompt to choose a skill when multiple are available.
+
+    Args:
+        action_name: Name of the action
+        available_skills: List of skill names
+        character: Optional character (to show their skills)
+
+    Returns:
+        Selected skill name
+    """
+    if len(available_skills) == 1:
+        return available_skills[0]
+
+    print(f"  Choose skill for {action_name}:")
+    for i, skill in enumerate(available_skills, 1):
+        has_skill = ""
+        if character:
+            if skill.lower() in [s.lower() for s in character.skills]:
+                has_skill = " (trained)"
+        print(f"    {i}. {skill}{has_skill}")
+
+    while True:
+        choice = input("  Enter number (default 1): ").strip()
+        if choice == "":
+            return available_skills[0]
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(available_skills):
+                return available_skills[idx]
+        except ValueError:
+            pass
+        print("  Invalid choice.")
 
 
 class SkillCheckResult:
@@ -424,6 +511,73 @@ class SkillCheckSystem:
             'breakdown': damage_breakdown,
             'total_damage': total_damage,
             'effects': effects
+        }
+
+    def make_barter_check(self, buyer, seller, skill_name="Barter"):
+        """
+        Make an opposed barter check for trading.
+
+        Args:
+            buyer: Character buying
+            seller: Character selling
+            skill_name: Skill to use (default Barter)
+
+        Returns:
+            dict with 'winner', 'price_modifier', 'margin', 'buyer_result', 'seller_result'
+        """
+        db = SkillDatabase.get_instance()
+        stat = db.get_stat_for_skill(skill_name) or "charisma"
+
+        print(f"\n  === Opposed {skill_name} Check ===")
+        print(f"  {buyer.name} (buyer) vs {seller.name} (seller)")
+
+        # Both make skill tests
+        buyer_result = self.make_skill_test(
+            buyer, stat, skill_name,
+            difficulty=0,
+            num_dice=2,
+            return_result_object=True
+        )
+        print(f"  {buyer.name}: {buyer_result.rolls} -> {buyer_result.successes} successes")
+
+        seller_result = self.make_skill_test(
+            seller, stat, skill_name,
+            difficulty=0,
+            num_dice=2,
+            return_result_object=True
+        )
+        print(f"  {seller.name}: {seller_result.rolls} -> {seller_result.successes} successes")
+
+        margin = buyer_result.successes - seller_result.successes
+
+        # Price modifier based on margin
+        # Buyer wins: lower price, Seller wins: higher price
+        # Each success difference = 10% modifier
+        if margin > 0:
+            winner = buyer
+            price_modifier = 1.0 - (margin * 0.1)  # Buyer wins, price goes down
+            price_modifier = max(0.5, price_modifier)  # Cap at 50% discount
+        elif margin < 0:
+            winner = seller
+            price_modifier = 1.0 + (abs(margin) * 0.1)  # Seller wins, price goes up
+            price_modifier = min(1.5, price_modifier)  # Cap at 50% markup
+        else:
+            winner = None
+            price_modifier = 1.0  # Tie, base price
+
+        pct = round((price_modifier - 1.0) * 100)
+        sign = "+" if pct > 0 else ""
+        if winner:
+            print(f"  Winner: {winner.name} ({sign}{pct}% price)")
+        else:
+            print(f"  Tie! Base price applies.")
+
+        return {
+            'winner': winner,
+            'price_modifier': price_modifier,
+            'margin': abs(margin),
+            'buyer_result': buyer_result,
+            'seller_result': seller_result
         }
 
 

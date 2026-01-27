@@ -1,0 +1,158 @@
+# Game Perks - Special abilities and bonuses
+# These provide benefits and unique mechanics to characters
+
+perks:
+  # Combat Perks
+  Bloody Mess:
+    category: combat
+    description: "Gain 15% bonus damage with all weapons"
+    requirements:
+      luck: 5
+    effects:
+      damage_bonus: 0.15
+  
+  Sharpshooter:
+    category: combat
+    description: "Gain +20% accuracy with ranged weapons"
+    requirements:
+      perception: 6
+      guns: 40
+    effects:
+      ranged_accuracy: 0.20
+  
+  Melee Master:
+    category: combat
+    description: "Gain +25% damage with melee weapons"
+    requirements:
+      strength: 7
+      melee: 50
+    effects:
+      melee_damage_bonus: 0.25
+  
+  Iron Fist:
+    category: combat
+    description: "Gain +15% unarmed damage"
+    requirements:
+      strength: 6
+      unarmed: 30
+    effects:
+      unarmed_damage_bonus: 0.15
+  
+  Evasion:
+    category: combat
+    description: "Gain +10% dodge chance during combat"
+    requirements:
+      agility: 7
+      sneak: 40
+    effects:
+      dodge_chance: 0.10
+  
+  # Survival Perks
+  Rad Resistance:
+    category: survival
+    description: "Gain 50% radiation resistance"
+    requirements:
+      endurance: 6
+    effects:
+      radiation_resistance: 0.50
+  
+  Survival Instinct:
+    category: survival
+    description: "Take 25% less damage from environmental sources"
+    requirements:
+      endurance: 7
+      survival: 50
+    effects:
+      environmental_damage_reduction: 0.25
+  
+  Chemist:
+    category: survival
+    description: "Crafted chems have 25% increased potency"
+    requirements:
+      intelligence: 6
+      science: 40
+    effects:
+      chem_potency_bonus: 0.25
+  
+  Scavenger:
+    category: survival
+    description: "Find 25% more items when looting containers"
+    requirements:
+      perception: 6
+      survival: 40
+    effects:
+      loot_quantity_bonus: 0.25
+  
+  # Dialogue Perks
+  Smooth Talker:
+    category: dialogue
+    description: "Gain +10% success chance on speech checks"
+    requirements:
+      charisma: 7
+      speech: 50
+    effects:
+      speech_bonus: 0.10
+  
+  Honest Trade:
+    category: dialogue
+    description: "Gain 25% better prices when buying and selling"
+    requirements:
+      charisma: 6
+      barter: 40
+    effects:
+      barter_bonus: 0.25
+  
+  # Utility Perks
+  Fast Learner:
+    category: utility
+    description: "Gain 10% bonus to experience gained"
+    requirements:
+      intelligence: 7
+    effects:
+      experience_bonus: 0.10
+  
+  Technician:
+    category: utility
+    description: "Gain +20% bonus to hacking and lockpicking checks"
+    requirements:
+      intelligence: 6
+      repair: 30
+    effects:
+      technical_bonus: 0.20
+  
+  Lucky:
+    category: utility
+    description: "Gain +1 luck, making all rolls slightly better"
+    requirements:
+      luck: 6
+    effects:
+      luck_bonus: 1
+  
+  Night Eyes:
+    category: utility
+    description: "Can see clearly in darkness"
+    requirements:
+      perception: 6
+    effects:
+      darkvision: true
+  
+  # Faction Perks
+  Ranger:
+    category: faction
+    description: "Gain faction reputation with wasteland rangers"
+    requirements:
+      agility: 6
+      survival: 50
+    effects:
+      faction_reputation:
+        wasteland_rangers: 100
+  
+  Smooth Criminal:
+    category: faction
+    description: "Gain faction reputation with criminal underworld"
+    requirements:
+      agility: 7
+      sneak: 60
+    effects:
+      faction_reputation:
+        criminal_underworld: 100

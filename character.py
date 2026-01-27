@@ -1,4 +1,4 @@
-import json
+import yaml
 from models.special_stats import SPECIALStats
 from models.inventory import Inventory
 from models.stat_modifier import StatModifier
@@ -15,6 +15,7 @@ class Character:
         player: "GM" for human-controlled NPCs, or an Agent instance for AI-controlled characters
         special: SPECIALStats object
         skills: List of skill names
+        perks: List of perk names
         background: Character background text
         personality_traits: List of personality traits
         inventory: Inventory object
@@ -28,9 +29,12 @@ class Character:
 
     def __init__(self, name, special, skills, background, personality_traits,
                  inventory=None, level=1, experience=0, health=None,
-                 radiation=0, conditions=None, body_parts=None, player="GM"):
+                 radiation=0, conditions=None, body_parts=None, player="GM",
+                 affiliation="Independent", aliases=None, perks=None):
         self.name = name
         self.player = player
+        self.affiliation = affiliation
+        self.aliases = aliases or []
 
         # Handle both dict and SPECIALStats object for backward compatibility
         if isinstance(special, dict):
@@ -39,6 +43,7 @@ class Character:
             self.special = special
 
         self.skills = skills or []
+        self.perks = perks or []
         self.background = background
         self.personality_traits = personality_traits or []
 
@@ -309,6 +314,48 @@ class Character:
         """
         return condition in self.conditions
 
+    def add_perk(self, perk):
+        """
+        Add a perk to the character.
+
+        Args:
+            perk: Perk name
+
+        Returns:
+            bool: True if perk was added
+        """
+        if perk not in self.perks:
+            self.perks.append(perk)
+            return True
+        return False
+
+    def remove_perk(self, perk):
+        """
+        Remove a perk from the character.
+
+        Args:
+            perk: Perk name
+
+        Returns:
+            bool: True if perk was removed
+        """
+        if perk in self.perks:
+            self.perks.remove(perk)
+            return True
+        return False
+
+    def has_perk(self, perk):
+        """
+        Check if character has a perk.
+
+        Args:
+            perk: Perk name
+
+        Returns:
+            bool: True if character has the perk
+        """
+        return perk in self.perks
+
     def _convert_legacy_inventory(self, inventory_list):
         """
         Convert old inventory format (list of strings) to new Inventory object.
@@ -336,39 +383,39 @@ class Character:
         return inventory
 
     @classmethod
-    def from_json(cls, json_path):
+    def from_yaml(cls, yaml_path):
         """
-        Create a Character from a JSON file (backward compatible).
+        Create a Character from a YAML file.
 
         Args:
-            json_path: Path to JSON file
+            yaml_path: Path to YAML file
 
         Returns:
             Character: New Character instance
         """
-        with open(json_path, 'r') as f:
-            data = json.load(f)
+        with open(yaml_path, 'r') as f:
+            data = yaml.safe_load(f)
 
         # Handle backward compatibility
         if 'special' in data and isinstance(data['special'], dict):
             if 'base' not in data['special']:
-                # Old format: convert to new format
                 data['special'] = SPECIALStats.from_dict(data['special'])
             else:
-                # New format
                 data['special'] = SPECIALStats.from_dict(data['special'])
 
         return cls(**data)
 
     def to_dict(self):
         """Convert character to dictionary for JSON serialization."""
-        return {
+        data = {
             'name': self.name,
             'player': self.player if isinstance(self.player, str) else self.player.name,
+            'affiliation': self.affiliation,
             'level': self.level,
             'experience': self.experience,
             'special': self.special.to_dict(),
             'skills': self.skills,
+            'perks': self.perks,
             'background': self.background,
             'personality_traits': self.personality_traits,
             'health': self.health,
@@ -377,16 +424,19 @@ class Character:
             'inventory': self.inventory.to_dict(),
             'body_parts': self.body_parts.to_dict()
         }
+        if self.aliases:
+            data['aliases'] = self.aliases
+        return data
 
-    def save_to_json(self, json_path):
+    def save_to_yaml(self, yaml_path):
         """
-        Save character to JSON file.
+        Save character to YAML file.
 
         Args:
-            json_path: Path to save file
+            yaml_path: Path to save file
         """
-        with open(json_path, 'w') as f:
-            json.dump(self.to_dict(), f, indent=2)
+        with open(yaml_path, 'w') as f:
+            yaml.dump(self.to_dict(), f, default_flow_style=False)
 
     def print_info(self):
         """Print detailed information about the character."""
@@ -401,6 +451,9 @@ class Character:
         print(str(self.special))
 
         print(f"\nSkills: {', '.join(self.skills)}")
+
+        if self.perks:
+            print(f"\nPerks: {', '.join(self.perks)}")
 
         if self.conditions:
             print(f"\nConditions: {', '.join(self.conditions)}")
@@ -422,6 +475,5 @@ class Character:
 
 
 if __name__ == "__main__":
-    # Create character from doc.json
-    doc = Character.from_json('characters/doc.json')
+    doc = Character.from_yaml('characters/doc.yaml')
     doc.print_info()

@@ -1,0 +1,74 @@
+affiliation: Raiders
+aliases:
+- 'Raider #2'
+background: Former Raider. Promoted from creature.
+body_parts:
+  parts:
+    head:
+      conditions: []
+      damage_multiplier: 2.0
+      health: 100
+      hit_chance_modifier: -20
+      max_health: 100
+      name: head
+    left arm:
+      conditions: []
+      damage_multiplier: 0.75
+      health: 100
+      hit_chance_modifier: -10
+      max_health: 100
+      name: left arm
+    left leg:
+      conditions: []
+      damage_multiplier: 0.75
+      health: 100
+      hit_chance_modifier: -10
+      max_health: 100
+      name: left leg
+    right arm:
+      conditions: []
+      damage_multiplier: 0.75
+      health: 100
+      hit_chance_modifier: -10
+      max_health: 100
+      name: right arm
+    right leg:
+      conditions: []
+      damage_multiplier: 0.75
+      health: 100
+      hit_chance_modifier: -10
+      max_health: 100
+      name: right leg
+    torso:
+      conditions: []
+      damage_multiplier: 1.0
+      health: 100
+      hit_chance_modifier: 0
+      max_health: 100
+      name: torso
+conditions: []
+experience: 0
+health:
+  current: 8
+  max: 8
+inventory:
+  items: []
+level: 2
+name: Scarface
+perks: []
+personality_traits: []
+player: GM
+radiation: 0
+skills:
+- Guns
+- Melee
+special:
+  base:
+    agility: 3
+    charisma: 2
+    endurance: 4
+    intelligence: 6
+    luck: 3
+    perception: 3
+    strength: 5
+  modifiers: []

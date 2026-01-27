@@ -1,0 +1,99 @@
+# Actions and their associated skills
+# type: opposed (vs another character) or check (vs DC)
+# skills: list of applicable skills (first is default)
+
+actions:
+  # Trading/Social
+  barter:
+    skills: [Barter, Speech]
+    type: opposed
+    description: "Negotiate a trade or price"
+
+  persuade:
+    skills: [Speech, Barter]
+    type: opposed
+    description: "Convince someone to do something"
+
+  intimidate:
+    skills: [Speech]
+    type: opposed
+    description: "Threaten or coerce"
+
+  deceive:
+    skills: [Speech]
+    type: opposed
+    description: "Lie or mislead"
+
+  # Stealth
+  sneak:
+    skills: [Sneak]
+    type: check
+    base_dc: 10
+    description: "Move without being detected"
+
+  pickpocket:
+    skills: [Sneak]
+    type: opposed
+    description: "Steal from someone"
+
+  # Technical
+  heal:
+    skills: [Medicine]
+    type: check
+    base_dc: 10
+    description: "Treat wounds or conditions"
+
+  hack:
+    skills: [Science]
+    type: check
+    base_dc: 15
+    description: "Bypass electronic security"
+
+  lockpick:
+    skills: [Lockpick]
+    type: check
+    base_dc: 10
+    description: "Open a lock"
+
+  repair:
+    skills: [Repair]
+    type: check
+    base_dc: 10
+    description: "Fix broken equipment"
+
+  # Combat
+  attack_ranged:
+    skills: [Guns]
+    type: check
+    base_dc: 10
+    description: "Shoot a target"
+
+  attack_melee:
+    skills: [Melee, Unarmed]
+    type: check
+    base_dc: 10
+    description: "Strike in close combat"
+
+  # Exploration
+  forage:
+    skills: [Survival]
+    type: check
+    base_dc: 10
+    description: "Find food, water, or supplies"
+
+  track:
+    skills: [Survival]
+    type: check
+    base_dc: 12
+    description: "Follow tracks or trails"
+  identify_creature:
+    skills: [Survival, Perception]
+    type: check
+    base_dc: 10
+    description: "Identify a creature by sight, sound, or tracks"
+
+  spot_detail:
+    skills: [Perception, Survival]
+    type: check
+    base_dc: 12
+    description: "Notice details in the environment"
