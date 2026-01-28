@@ -271,6 +271,25 @@ def load_campaign_file(filepath, settings):
             if ref and ref.file_path and Path(ref.file_path).exists():
                 try:
                     char = Character.from_yaml(ref.file_path)
+
+                    # Attach agent if specified in campaign (for PCs)
+                    if ref.agent and not ref.is_npc:
+                        agent_file = agents_dir / f"{ref.agent}.yaml"
+                        if agent_file.exists():
+                            try:
+                                char.player = Agent.from_yaml(str(agent_file))
+                            except Exception as e:
+                                print(f"  Warning: Could not load agent {ref.agent}: {e}")
+
+                    # For NPCs, load appropriate NPC agent
+                    elif ref.is_npc:
+                        agent_file = agents_dir / "npc_neutral.yaml"
+                        if agent_file.exists():
+                            try:
+                                char.player = Agent.from_yaml(str(agent_file))
+                            except Exception:
+                                pass
+
                     session.characters[name] = char
                     session._name_lookup[name.lower()] = char
                     for alias in char.aliases:
@@ -279,8 +298,19 @@ def load_campaign_file(filepath, settings):
                 except Exception as e:
                     print(f"  Warning: Could not load {name}: {e}")
 
+    # Initialize table state with loaded characters
+    session._initialize_table_state()
+
     print(f"\n  Campaign loaded: {session.campaign.name}")
     print(f"  Characters loaded: {chars_loaded}")
+
+    # Show PCs and NPCs
+    pcs = [name for name in session.table_state.round_robin_order]
+    npcs = [name for name in session.table_state.npc_names]
+    if pcs:
+        print(f"  Player Characters: {', '.join(pcs)}")
+    if npcs:
+        print(f"  Notable NPCs: {', '.join(npcs)}")
 
     if current_session:
         print(f"  Current session: {current_session.name}")

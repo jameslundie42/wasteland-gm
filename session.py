@@ -8,6 +8,7 @@ from systems.skill_checks import get_skill_check_system, SkillDatabase, prompt_s
 from systems.character_generator import create_character_interactive
 from models.game_state import Campaign, CharacterPresence, CharacterRef
 from models.creature import CreatureRegistry, CreatureInstance
+from models.table_state import TableState, extract_action_from_response
 
 
 class Session:
@@ -24,6 +25,7 @@ class Session:
         self._name_lookup = {}  # Maps lowercase name/alias -> character
         self.campaign = campaign  # Optional Campaign for hierarchical tracking
         self.settings = settings or {}  # Game settings
+        self.table_state = TableState()  # Track play flow around the table
 
     @property
     def current_scene(self):
@@ -466,6 +468,29 @@ class Session:
                 return self._list_agents()
             return self._change_agent(parts[1:])
 
+        # === TABLE STATE COMMANDS ===
+
+        # Show table state
+        elif command == "table":
+            return self._show_table_state()
+
+        # Set spotlight on specific character
+        elif command == "spotlight":
+            if len(parts) < 2:
+                self.table_state.clear_spotlight()
+                return "Spotlight cleared. Returning to group mode."
+            return self._set_spotlight(" ".join(parts[1:]))
+
+        # Set character's current action/state
+        elif command == "state":
+            if len(parts) < 3:
+                return "Usage: /state <character> <action description>"
+            return self._set_character_state(parts[1], " ".join(parts[2:]))
+
+        # Go around the table (round-robin responses)
+        elif command == "around":
+            return self._go_around_table(parts[1:] if len(parts) > 1 else None)
+
         # Help command
         elif command == "help" or command == "h":
             return self.get_help_text()
@@ -514,15 +539,15 @@ class Session:
 
     def gm_narrate(self, narration):
         """
-        GM narrates and collects agent responses.
-        Prints dialogue directly, then prompts for actions/trades.
+        GM narrates and collects agent responses using table state for flow.
 
         Supports @CharName targeting:
           @Doc Rivera You hear footsteps behind you.
           @Doc Rivera @Marcus A grenade lands between you.
 
-        Without @ prefix, broadcasts to characters in current scene
-        (or all characters if not using campaign mode).
+        Without @ prefix, uses round-robin for PC responses (going around the table).
+
+        Spotlight mode: If spotlight is set, only that character responds.
 
         Behavior depends on npc_dialogue_mode setting (NPCs only):
           - "auto": NPC agents automatically generate dialogue
@@ -532,6 +557,15 @@ class Session:
         """
         targets, text = self._parse_mentions(narration)
 
+        # Initialize table state if needed
+        if not self.table_state.round_robin_order:
+            self._initialize_table_state()
+
+        # Log the narration
+        addressed_names = ", ".join(c.name for c in targets) if targets else None
+        self.table_state.log_action("GM", "narration", text[:50] + "..." if len(text) > 50 else text, addressed_names)
+
+        # Print narration
         if targets:
             print(f"\nNarrator (to {', '.join(c.name for c in targets)}): {text}\n")
         else:
@@ -541,48 +575,115 @@ class Session:
             else:
                 print(f"\nNarrator: {text}\n")
 
+        # Determine who responds
         is_broadcast = not targets
-        # Use scene characters if in campaign mode, otherwise all characters
+
+        # Check for spotlight mode
+        if self.table_state.spotlight and not targets:
+            spotlight_char = self.get_character(self.table_state.spotlight)
+            if spotlight_char:
+                targets = [spotlight_char]
+                is_broadcast = False
+                print(f"  [Spotlight on {self.table_state.spotlight}]\n")
+
+        # Get characters to address
         characters_to_address = targets if targets else self.get_scene_characters()
 
-        # Check dialogue mode setting
-        dialogue_mode = self.settings.get("npc_dialogue_mode", "auto")
+        # Separate PCs and NPCs for round-robin
+        pcs_to_respond = []
+        npcs_to_respond = []
 
         for character in characters_to_address:
             if isinstance(character, str):
                 continue
             if isinstance(character.player, Agent):
-                # Skip NPC agents on broadcasts (they only respond when targeted)
-                if is_broadcast and character.player.is_npc:
+                is_npc = getattr(character.player, 'is_npc', False)
+
+                # Skip NPCs on broadcasts (they only respond when targeted)
+                if is_broadcast and is_npc:
                     continue
 
-                roll = None
-                if character.player.requires_roll:
-                    roll = self._prompt_roll(character)
-
-                # Handle dialogue based on mode
-                # Manual mode only applies to NPCs (GM-controlled characters)
-                # Player characters always use auto-generation
-                is_npc = character.player.is_npc if hasattr(character.player, 'is_npc') else False
-
-                if dialogue_mode == "manual" and is_npc:
-                    response = self._get_manual_dialogue(character, text, roll)
+                if is_npc:
+                    npcs_to_respond.append(character)
                 else:
-                    # Auto mode or player character - agent generates response
-                    response = character.player.respond(character, text, roll=roll)
+                    pcs_to_respond.append(character)
 
-                display_text, actions, trades, checks = self._prepare_response(character, response, roll)
+        # Check dialogue mode setting
+        dialogue_mode = self.settings.get("npc_dialogue_mode", "auto")
 
-                # Print dialogue first
-                print(f"{character.name}: {display_text}")
+        # Round-robin for PCs (each sees previous responses)
+        previous_responses = []
 
-                # Then process checks/actions/trades
-                results = self._execute_pending(character, actions, trades, checks, roll)
-                for line in results:
-                    print(line)
+        for i, character in enumerate(pcs_to_respond):
+            # Build context including previous PC responses this round
+            context_parts = [text]
 
-                # Check for agent-to-agent conversation
-                self._handle_conversation(character, response, roll)
+            if previous_responses:
+                context_parts.append("\n\nOther party members have responded:")
+                for prev_name, prev_resp in previous_responses[-3:]:
+                    # Truncate long responses in context
+                    short_resp = prev_resp[:150] + "..." if len(prev_resp) > 150 else prev_resp
+                    context_parts.append(f"  {prev_name}: {short_resp}")
+                context_parts.append("\nNow it's your turn.")
+
+            full_context = "\n".join(context_parts)
+
+            roll = None
+            if character.player.requires_roll:
+                roll = self._prompt_roll(character)
+
+            response = character.player.respond(character, full_context, roll=roll)
+
+            display_text, actions, trades, checks = self._prepare_response(character, response, roll)
+
+            # Update table state with character's action
+            action_summary = extract_action_from_response(display_text)
+            self.table_state.update_character_state(character.name, action=action_summary)
+            self.table_state.log_action(character.name, "response", action_summary)
+
+            # Store for context
+            previous_responses.append((character.name, display_text))
+
+            # Print dialogue
+            print(f"{character.name}: {display_text}")
+
+            # Process checks/actions/trades
+            results = self._execute_pending(character, actions, trades, checks, roll)
+            for line in results:
+                print(line)
+
+            # Check for agent-to-agent conversation
+            self._handle_conversation(character, response, roll)
+
+            # Small visual separator between PCs
+            if i < len(pcs_to_respond) - 1:
+                print()
+
+        # Then NPCs respond (if targeted)
+        for character in npcs_to_respond:
+            roll = None
+            if character.player.requires_roll:
+                roll = self._prompt_roll(character)
+
+            if dialogue_mode == "manual":
+                response = self._get_manual_dialogue(character, text, roll)
+            else:
+                response = character.player.respond(character, text, roll=roll)
+
+            display_text, actions, trades, checks = self._prepare_response(character, response, roll)
+
+            # Update table state
+            action_summary = extract_action_from_response(display_text)
+            self.table_state.update_character_state(character.name, action=action_summary)
+            self.table_state.log_action(character.name, "response", action_summary)
+
+            print(f"{character.name}: {display_text}")
+
+            results = self._execute_pending(character, actions, trades, checks, roll)
+            for line in results:
+                print(line)
+
+            self._handle_conversation(character, response, roll)
 
     def _get_manual_dialogue(self, character, context, roll=None):
         """
@@ -918,7 +1019,8 @@ class Session:
         else:
             return """
 /campaign                  - Show campaign status
-/campaign new [name]       - Create new campaign
+/campaign new [name]       - Create new campaign (quick)
+/campaign new wizard       - Interactive campaign setup
 /campaign save             - Save campaign to file
 /campaign load <file>      - Load campaign from file
 /campaign session [name]   - Start new session in campaign
@@ -971,13 +1073,246 @@ class Session:
 
         return "\n".join(lines)
 
-    def _new_campaign(self, name=None):
-        """Create a new campaign."""
-        if not name:
-            name = "Wasteland Campaign"
+    def _new_campaign(self, args=None):
+        """Create a new campaign. Use 'wizard' for interactive setup."""
+        if args and args.lower() == "wizard":
+            return self._campaign_wizard()
+
+        name = args if args else "Wasteland Campaign"
         self.campaign = Campaign(name=name)
         self.campaign.new_session("Session 1")
-        return f"Created campaign: {name}"
+        return f"Created campaign: {name}\n(Use '/campaign new wizard' for interactive setup)"
+
+    def _campaign_wizard(self):
+        """Interactive wizard for creating a new campaign."""
+        print("\n" + "=" * 50)
+        print("       CAMPAIGN CREATION WIZARD")
+        print("=" * 50)
+        print("\nLet's set up your new campaign step by step.")
+        print("Press Enter to skip any optional section.\n")
+
+        # === CAMPAIGN NAME ===
+        print("--- Campaign Name ---")
+        name = input("Campaign name: ").strip()
+        if not name:
+            name = "Wasteland Campaign"
+            print(f"  Using: {name}")
+
+        self.campaign = Campaign(name=name)
+
+        # === PLAYER CHARACTERS ===
+        print("\n--- Player Characters ---")
+        print("Add player characters with their AI agents.")
+        print("Available agents: veteran_marcus, newbie_alex, optimizer_sam,")
+        print("                  chaos_riley, method_jordan, casual_casey")
+        print("Type 'done' when finished, or Enter to skip.\n")
+
+        # List available character files
+        chars_dir = Path(__file__).parent / "characters"
+        available_chars = [f.stem for f in chars_dir.glob("*.yaml")] if chars_dir.exists() else []
+        if available_chars:
+            print(f"Available character files: {', '.join(available_chars[:10])}")
+            if len(available_chars) > 10:
+                print(f"  ...and {len(available_chars) - 10} more")
+            print()
+
+        pc_count = 0
+        while True:
+            pc_input = input(f"PC {pc_count + 1} (name or filename): ").strip()
+            if not pc_input or pc_input.lower() == "done":
+                break
+
+            # Try to find character file
+            char_file = None
+            char_name = pc_input
+
+            # Check if it's a filename
+            test_path = chars_dir / f"{pc_input}.yaml"
+            if test_path.exists():
+                char_file = str(test_path)
+                # Load to get actual name
+                try:
+                    char = Character.from_yaml(char_file)
+                    char_name = char.name
+                except Exception:
+                    pass
+
+            # Ask for agent
+            agent_input = input(f"  Agent for {char_name} (or Enter for veteran_marcus): ").strip()
+            agent = agent_input if agent_input else "veteran_marcus"
+
+            # Register with campaign
+            self.campaign.register_character(
+                name=char_name,
+                file_path=char_file,
+                presence=CharacterPresence.ACTIVE,
+                is_npc=False,
+                agent=agent
+            )
+            print(f"  Added: {char_name} ({agent})")
+            pc_count += 1
+
+        # === NOTABLE NPCs ===
+        print("\n--- Notable NPCs ---")
+        print("Add important NPCs the party will interact with.")
+        print("Type 'done' when finished, or Enter to skip.\n")
+
+        npc_count = 0
+        while True:
+            npc_input = input(f"NPC {npc_count + 1} (name or filename): ").strip()
+            if not npc_input or npc_input.lower() == "done":
+                break
+
+            # Try to find character file
+            char_file = None
+            char_name = npc_input
+
+            test_path = chars_dir / f"{npc_input}.yaml"
+            if test_path.exists():
+                char_file = str(test_path)
+                try:
+                    char = Character.from_yaml(char_file)
+                    char_name = char.name
+                except Exception:
+                    pass
+
+            # Ask for notes
+            notes = input(f"  Notes for {char_name} (optional): ").strip()
+
+            # Register with campaign
+            self.campaign.register_character(
+                name=char_name,
+                file_path=char_file,
+                presence=CharacterPresence.KNOWN,
+                is_npc=True,
+                notes=notes
+            )
+            print(f"  Added: {char_name}")
+            npc_count += 1
+
+        # === STARTING LOCATION ===
+        print("\n--- Starting Location ---")
+        location_name = input("Starting location name (or Enter to skip): ").strip()
+        location_desc = ""
+        if location_name:
+            location_desc = input("  Brief description: ").strip()
+            self.campaign.locations[location_name] = {
+                "description": location_desc,
+                "known_dangers": ""
+            }
+            print(f"  Added location: {location_name}")
+
+        # === FACTIONS ===
+        print("\n--- Factions ---")
+        print("Add major factions in your campaign.")
+        print("Type 'done' when finished, or Enter to skip.\n")
+
+        faction_count = 0
+        while True:
+            faction_name = input(f"Faction {faction_count + 1} name: ").strip()
+            if not faction_name or faction_name.lower() == "done":
+                break
+
+            disposition = input(f"  Disposition (hostile/neutral/friendly): ").strip().lower()
+            if disposition not in ("hostile", "neutral", "friendly"):
+                disposition = "neutral"
+
+            faction_notes = input(f"  Notes (optional): ").strip()
+
+            self.campaign.factions[faction_name] = {
+                "disposition": disposition,
+                "notes": faction_notes
+            }
+            print(f"  Added: {faction_name} ({disposition})")
+            faction_count += 1
+
+        # === STARTING QUEST ===
+        print("\n--- Starting Quest ---")
+        quest_name = input("Main quest name (or Enter to skip): ").strip()
+        if quest_name:
+            quest_desc = input("  Description: ").strip()
+
+            print("  Objectives (one per line, empty line to finish):")
+            objectives = []
+            while True:
+                obj = input("    - ").strip()
+                if not obj:
+                    break
+                objectives.append(obj)
+
+            self.campaign.quests.append({
+                "name": quest_name,
+                "status": "active",
+                "description": quest_desc,
+                "objectives": objectives
+            })
+            print(f"  Added quest: {quest_name}")
+
+        # === CAMPAIGN NOTES ===
+        print("\n--- Campaign Notes ---")
+        notes = input("Any additional notes (or Enter to skip): ").strip()
+        if notes:
+            self.campaign.notes = notes
+
+        # === CREATE FIRST SESSION ===
+        session_name = input("\nFirst session name (or Enter for 'Session 1'): ").strip()
+        if not session_name:
+            session_name = "Session 1"
+
+        session = self.campaign.new_session(session_name)
+
+        # Add all PCs to the session
+        for ref in self.campaign.characters.values():
+            if not ref.is_npc:
+                session.add_to_session(ref.name)
+
+        # Create starting scene if location was specified
+        if location_name:
+            scene = session.new_scene(
+                name=f"Opening Scene",
+                location=location_name,
+                description=location_desc
+            )
+            # Add all session characters to scene
+            for char_name in session.active_characters:
+                scene.add_character(char_name)
+
+        # === SUMMARY ===
+        print("\n" + "=" * 50)
+        print("       CAMPAIGN CREATED!")
+        print("=" * 50)
+        print(f"\nCampaign: {name}")
+
+        pcs = [r for r in self.campaign.characters.values() if not r.is_npc]
+        npcs = [r for r in self.campaign.characters.values() if r.is_npc]
+
+        if pcs:
+            print(f"\nPlayer Characters ({len(pcs)}):")
+            for ref in pcs:
+                print(f"  - {ref.name} ({ref.agent})")
+
+        if npcs:
+            print(f"\nNotable NPCs ({len(npcs)}):")
+            for ref in npcs:
+                print(f"  - {ref.name}")
+
+        if self.campaign.locations:
+            print(f"\nLocations: {', '.join(self.campaign.locations.keys())}")
+
+        if self.campaign.factions:
+            print(f"Factions: {', '.join(self.campaign.factions.keys())}")
+
+        if self.campaign.quests:
+            print(f"Quests: {', '.join(q['name'] for q in self.campaign.quests)}")
+
+        # Ask to save
+        print()
+        save_choice = input("Save campaign to file? (y/n): ").strip().lower()
+        if save_choice in ("y", "yes"):
+            path = self.campaign.save()
+            print(f"Saved to: {path}")
+
+        return f"\nCampaign '{name}' is ready! Use /campaign to view status."
 
     def _save_campaign(self):
         """Save campaign to file."""
@@ -1000,11 +1335,32 @@ class Session:
 
         # Reload active characters
         session = self.campaign.current_session
+        agents_dir = Path(__file__).parent / "agents"
         if session:
             for name in session.active_characters:
                 ref = self.campaign.characters.get(name)
                 if ref and ref.file_path:
                     char = Character.from_yaml(ref.file_path)
+
+                    # Attach agent if specified in campaign (for PCs)
+                    if ref.agent and not ref.is_npc:
+                        agent_file = agents_dir / f"{ref.agent}.yaml"
+                        if agent_file.exists():
+                            try:
+                                char.player = Agent.from_yaml(str(agent_file))
+                            except Exception as e:
+                                print(f"  Warning: Could not load agent {ref.agent}: {e}")
+
+                    # For NPCs, load appropriate NPC agent
+                    elif ref.is_npc:
+                        # Default to npc_neutral for NPCs
+                        agent_file = agents_dir / "npc_neutral.yaml"
+                        if agent_file.exists():
+                            try:
+                                char.player = Agent.from_yaml(str(agent_file))
+                            except Exception:
+                                pass
+
                     self.characters[name] = char
                     self._name_lookup[name.lower()] = char
                     for alias in char.aliases:
@@ -1809,6 +2165,132 @@ class Session:
             except Exception as e:
                 return f"Error loading agent: {e}"
 
+    # === TABLE STATE HANDLERS ===
+
+    def _show_table_state(self):
+        """Display current table state."""
+        return self.table_state.get_table_display()
+
+    def _set_spotlight(self, char_name):
+        """Set the spotlight on a specific character."""
+        char = self.get_character(char_name)
+        if not char:
+            return f"Character not found: {char_name}"
+
+        self.table_state.set_spotlight(char.name)
+        return f"Spotlight on {char.name}. Only they will respond to narration."
+
+    def _set_character_state(self, char_name, action):
+        """Set a character's current action/state."""
+        char = self.get_character(char_name)
+        if not char:
+            return f"Character not found: {char_name}"
+
+        self.table_state.update_character_state(char.name, action=action)
+        return f"{char.name}: {action}"
+
+    def _go_around_table(self, prompt_parts=None):
+        """
+        Initiate round-robin responses from all PCs.
+        Optionally with a prompt/question for them to respond to.
+        """
+        # Get PCs in scene
+        scene_chars = self.get_scene_characters()
+        pcs = [c for c in scene_chars if isinstance(c.player, Agent) and not getattr(c.player, 'is_npc', False)]
+        npcs = [c for c in scene_chars if isinstance(c.player, Agent) and getattr(c.player, 'is_npc', False)]
+
+        if not pcs:
+            return "No player characters in the scene."
+
+        # Set up table state
+        pc_names = [c.name for c in pcs]
+        npc_names = [c.name for c in npcs]
+        self.table_state.set_round_robin_order(pc_names, npc_names)
+
+        # If there's a prompt, add it to the log
+        prompt = " ".join(prompt_parts) if prompt_parts else None
+        if prompt:
+            self.table_state.log_action("GM", "question", prompt)
+            print(f"\nGM asks: {prompt}\n")
+
+        # Start round-robin
+        self.table_state.start_round_robin()
+
+        # Go around the table
+        responses = []
+        while self.table_state.round_robin_active:
+            current_speaker = self.table_state.get_current_speaker()
+            if not current_speaker:
+                break
+
+            char = self.get_character(current_speaker)
+            if not char or not isinstance(char.player, Agent):
+                self.table_state.advance_round_robin()
+                continue
+
+            # Build context with previous responses
+            context = self.table_state.get_context_summary()
+            if responses:
+                context += "\n\nOther players have responded:"
+                for name, resp in responses[-3:]:  # Last 3 responses
+                    context += f"\n  {name}: {resp[:100]}..."
+
+            # Get response
+            print(f"{current_speaker}'s turn...")
+
+            try:
+                # Build prompt for agent
+                agent_prompt = ""
+                if prompt:
+                    agent_prompt = f"The GM asks the group: {prompt}\n\n"
+                if context:
+                    agent_prompt += f"{context}\n\n"
+                agent_prompt += "It's your turn to respond. What do you do or say?"
+
+                response = char.player.respond(
+                    agent_prompt,
+                    char,
+                    self.get_scene_characters()
+                )
+
+                # Update table state
+                action_summary = extract_action_from_response(response)
+                self.table_state.update_character_state(current_speaker, action=action_summary)
+                self.table_state.log_action(current_speaker, "response", action_summary)
+
+                responses.append((current_speaker, response))
+
+                # Print response
+                print(f"\n{current_speaker}: {response}\n")
+
+            except Exception as e:
+                print(f"  [{current_speaker} failed to respond: {e}]")
+
+            # Move to next speaker
+            next_speaker, round_complete = self.table_state.advance_round_robin()
+            if round_complete:
+                break
+
+        self.table_state.end_round_robin()
+
+        return f"\n--- Round complete. {len(responses)} characters responded. ---"
+
+    def _initialize_table_state(self):
+        """Initialize table state with current scene characters."""
+        scene_chars = self.get_scene_characters()
+
+        pcs = []
+        npcs = []
+
+        for char in scene_chars:
+            if isinstance(char.player, Agent):
+                if getattr(char.player, 'is_npc', False):
+                    npcs.append(char.name)
+                else:
+                    pcs.append(char.name)
+
+        self.table_state.set_round_robin_order(pcs, npcs)
+
     def get_help_text(self):
         """Get help text for available commands."""
         return """
@@ -1852,7 +2334,8 @@ BODY PARTS:
 
 CAMPAIGN (for context management):
   /campaign                 - Show campaign/session/scene status
-  /campaign new [name]      - Create new campaign
+  /campaign new [name]      - Create new campaign (quick)
+  /campaign new wizard      - Interactive campaign setup wizard
   /campaign save            - Save campaign to file
   /campaign load <file>     - Load campaign from file
   /campaign session [name]  - Start new session in campaign
@@ -1888,8 +2371,17 @@ CREATURES:
   /agent                    - List available NPC agents
   /agent <target> <agent>   - Change creature/character agent
 
+TABLE STATE (play flow management):
+  /table                    - Show current table state
+  /spotlight <character>    - Give spotlight to character (only they respond)
+  /spotlight                - Clear spotlight (return to group)
+  /state <char> <action>    - Set what a character is currently doing
+  /around [question]        - Go around table, each PC responds in turn
+  @<name> <text>            - Direct narration to specific character(s)
+
 Examples:
-  /campaign new Wasteland Adventures
+  /campaign new wizard              - Full interactive setup
+  /campaign new Wasteland Adventures - Quick campaign creation
   /scene new Dusty Crossroads Outside Megaton
   /enter Jack
   /combat start
@@ -1898,4 +2390,8 @@ Examples:
   /loot "Raider #1" to Jack
   /promote "Raider #2" Scarface
   /next
+  /table                            - See who's doing what
+  /spotlight Elena                  - Focus on Elena only
+  @Elena You spot movement          - Direct narration to Elena
+  /around What do you all think?    - Each PC responds in turn
 """
