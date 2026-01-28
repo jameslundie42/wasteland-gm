@@ -9,6 +9,7 @@ from systems.character_generator import create_character_interactive
 from models.game_state import Campaign, CharacterPresence, CharacterRef
 from models.creature import CreatureRegistry, CreatureInstance
 from models.table_state import TableState, extract_action_from_response
+from models.party_vote import PartyVote, generate_vote_prompt, parse_vote_response
 
 
 class Session:
@@ -26,6 +27,8 @@ class Session:
         self.campaign = campaign  # Optional Campaign for hierarchical tracking
         self.settings = settings or {}  # Game settings
         self.table_state = TableState()  # Track play flow around the table
+        self.current_vote = None  # Active PartyVote if any
+        self.parallel_scenes = []  # Scenes happening simultaneously
 
     @property
     def current_scene(self):
@@ -490,6 +493,16 @@ class Session:
         # Go around the table (round-robin responses)
         elif command == "around":
             return self._go_around_table(parts[1:] if len(parts) > 1 else None)
+
+        # === VOTING COMMANDS ===
+
+        # Start a party vote
+        elif command == "vote":
+            return self._handle_vote_command(parts[1:])
+
+        # Switch between parallel scenes
+        elif command == "parallel":
+            return self._handle_parallel_command(parts[1:])
 
         # Help command
         elif command == "help" or command == "h":
@@ -2291,6 +2304,398 @@ class Session:
 
         self.table_state.set_round_robin_order(pcs, npcs)
 
+    # === VOTING HANDLERS ===
+
+    def _handle_vote_command(self, parts):
+        """
+        Handle /vote commands.
+
+        Usage:
+            /vote <question>          - Start interactive vote setup
+            /vote split <question>    - Start split-party vote
+            /vote status              - Show current vote status
+            /vote resolve             - Resolve current vote
+            /vote cancel              - Cancel current vote
+        """
+        if not parts:
+            return self._show_vote_help()
+
+        action = parts[0].lower()
+
+        if action == "status":
+            return self._show_vote_status()
+        elif action == "resolve":
+            return self._resolve_vote()
+        elif action == "cancel":
+            self.current_vote = None
+            return "Vote cancelled."
+        elif action == "split":
+            # Split party vote
+            question = " ".join(parts[1:]) if len(parts) > 1 else None
+            return self._start_vote(question, mode="split")
+        else:
+            # Majority vote - entire args is the question
+            question = " ".join(parts)
+            return self._start_vote(question, mode="majority")
+
+    def _show_vote_help(self):
+        """Show vote command help."""
+        return """
+=== Party Voting ===
+
+Start a vote:
+  /vote <question>            - Majority vote (party acts together)
+  /vote split <question>      - Split vote (party can divide)
+
+Manage votes:
+  /vote status                - Show current vote
+  /vote resolve               - Resolve and apply results
+  /vote cancel                - Cancel current vote
+
+Examples:
+  /vote Do we fight or negotiate?
+  /vote split Who investigates where?
+"""
+
+    def _start_vote(self, question, mode="majority"):
+        """Start an interactive vote."""
+        if not question:
+            return "Please provide a question: /vote <question>"
+
+        print(f"\n{'=' * 50}")
+        print(f"  STARTING {'SPLIT' if mode == 'split' else 'MAJORITY'} VOTE")
+        print(f"  Question: {question}")
+        print(f"{'=' * 50}")
+        print("\nEnter options one per line. Empty line when done.")
+        print("(Minimum 2 options required)\n")
+
+        options = []
+        while True:
+            opt = input(f"  Option {len(options) + 1}: ").strip()
+            if not opt:
+                if len(options) >= 2:
+                    break
+                else:
+                    print("  (Need at least 2 options)")
+                    continue
+            options.append(opt)
+
+        if len(options) < 2:
+            return "Vote cancelled - need at least 2 options."
+
+        # Create the vote
+        self.current_vote = PartyVote(question, options, mode=mode)
+
+        # Display the vote
+        print(self.current_vote.get_display())
+
+        # Get votes from PCs
+        return self._collect_votes()
+
+    def _collect_votes(self):
+        """Collect votes from all PCs."""
+        if not self.current_vote:
+            return "No active vote."
+
+        scene_chars = self.get_scene_characters()
+        pcs = [c for c in scene_chars if isinstance(c.player, Agent)
+               and not getattr(c.player, 'is_npc', False)]
+
+        if not pcs:
+            return "No player characters to vote."
+
+        print(f"\n--- Collecting votes from {len(pcs)} players ---\n")
+
+        for char in pcs:
+            # Generate vote prompt
+            traits = getattr(char, 'personality_traits', [])
+            prompt = generate_vote_prompt(self.current_vote, char.name, traits)
+
+            try:
+                # Get agent's vote
+                response = char.player.respond(char, prompt, roll=None)
+
+                # Parse the vote
+                vote_num = parse_vote_response(response, len(self.current_vote.options))
+
+                if vote_num:
+                    self.current_vote.cast_vote(char.name, vote_num)
+                    opt = self.current_vote.options[vote_num]
+                    print(f"  {char.name} votes [{vote_num}] {opt.description}")
+                    # Show their reasoning (truncated)
+                    reason = response.split('-', 1)[-1].strip() if '-' in response else response
+                    if reason and len(reason) < 100:
+                        print(f"    \"{reason}\"")
+                else:
+                    print(f"  {char.name}: Could not parse vote from response")
+
+            except Exception as e:
+                print(f"  {char.name}: Error getting vote - {e}")
+
+        # Show results
+        print(self.current_vote.get_display(show_votes=True))
+
+        if self.current_vote.mode == "split":
+            return "\nUse /vote resolve to split the party, or /vote cancel to abort."
+        else:
+            return "\nUse /vote resolve to apply the decision, or /vote cancel to abort."
+
+    def _show_vote_status(self):
+        """Show current vote status."""
+        if not self.current_vote:
+            return "No active vote. Use /vote <question> to start one."
+
+        return self.current_vote.get_display(show_votes=True)
+
+    def _resolve_vote(self):
+        """Resolve the current vote and apply results."""
+        if not self.current_vote:
+            return "No active vote to resolve."
+
+        result = self.current_vote.resolve()
+
+        # Display results
+        print(self.current_vote.get_result_display())
+
+        if self.current_vote.mode == "majority":
+            # Log to table state
+            self.table_state.log_action(
+                "Party",
+                "decision",
+                f"Decided: {result['description']}"
+            )
+            self.current_vote = None
+            return f"\nThe party has decided: {result['description']}"
+
+        else:  # split mode
+            # Create parallel scenes
+            return self._create_parallel_scenes(result['groups'])
+
+    def _create_parallel_scenes(self, groups):
+        """Create parallel scenes for a split party."""
+        if not self.campaign:
+            self.current_vote = None
+            return "Cannot split party without an active campaign. Groups noted but no scenes created."
+
+        session = self.campaign.current_session
+        if not session:
+            self.current_vote = None
+            return "No active session. Groups noted but no scenes created."
+
+        current_scene = session.current_scene
+        base_location = current_scene.location if current_scene else "Unknown"
+
+        # Clear parallel scenes
+        self.parallel_scenes = []
+
+        print(f"\n--- Creating parallel scenes ---\n")
+
+        for group_num, group_data in groups.items():
+            # Ask for scene details
+            print(f"Group {group_num}: {group_data['description']}")
+            print(f"  Members: {', '.join(group_data['members'])}")
+
+            scene_name = input(f"  Scene name [{group_data['description'][:30]}]: ").strip()
+            if not scene_name:
+                scene_name = group_data['description'][:30]
+
+            scene_location = input(f"  Location [{base_location}]: ").strip()
+            if not scene_location:
+                scene_location = base_location
+
+            scene_desc = input(f"  Brief description: ").strip()
+
+            # Create the scene
+            scene = session.new_scene(
+                name=scene_name,
+                location=scene_location,
+                description=scene_desc
+            )
+
+            # Add group members to scene
+            for member_name in group_data['members']:
+                scene.add_character(member_name)
+
+            # Track as parallel scene
+            self.parallel_scenes.append({
+                "scene_index": len(session.scenes) - 1,
+                "group_num": group_num,
+                "description": group_data['description'],
+                "members": group_data['members'],
+                "completed": False
+            })
+
+            print(f"  Created scene: {scene_name}\n")
+
+        # Set first parallel scene as current
+        if self.parallel_scenes:
+            session.current_scene_index = self.parallel_scenes[0]["scene_index"]
+
+        self.current_vote = None
+
+        # Log the split
+        self.table_state.log_action(
+            "Party",
+            "split",
+            f"Split into {len(self.parallel_scenes)} groups"
+        )
+
+        return self._show_parallel_status()
+
+    def _handle_parallel_command(self, parts):
+        """
+        Handle /parallel commands for managing split party scenes.
+
+        Usage:
+            /parallel              - Show parallel scene status
+            /parallel next         - Switch to next parallel scene
+            /parallel <number>     - Switch to specific scene
+            /parallel rejoin       - Rejoin all groups
+        """
+        if not parts:
+            return self._show_parallel_status()
+
+        action = parts[0].lower()
+
+        if action == "next":
+            return self._next_parallel_scene()
+        elif action == "rejoin":
+            return self._rejoin_party()
+        elif action.isdigit():
+            return self._switch_parallel_scene(int(action))
+        else:
+            return """
+/parallel              - Show status of parallel scenes
+/parallel next         - Switch to next group's scene
+/parallel <number>     - Switch to specific scene (1, 2, etc.)
+/parallel rejoin       - Rejoin all groups into one scene
+"""
+
+    def _show_parallel_status(self):
+        """Show status of parallel scenes."""
+        if not self.parallel_scenes:
+            return "No parallel scenes active. Use /vote split to divide the party."
+
+        session = self.campaign.current_session if self.campaign else None
+        current_idx = session.current_scene_index if session else -1
+
+        lines = ["\n" + "=" * 50]
+        lines.append("  PARALLEL SCENES (Happening Simultaneously)")
+        lines.append("=" * 50)
+
+        for i, ps in enumerate(self.parallel_scenes, 1):
+            current = " <-- CURRENT" if ps["scene_index"] == current_idx else ""
+            status = "[DONE]" if ps["completed"] else "[ACTIVE]"
+            lines.append(f"\n  [{i}] {ps['description']} {status}{current}")
+            lines.append(f"      Members: {', '.join(ps['members'])}")
+
+        lines.append("\n" + "=" * 50)
+        lines.append("  Use /parallel next or /parallel <number> to switch")
+        lines.append("  Use /parallel rejoin when both groups are ready")
+        lines.append("=" * 50)
+
+        return "\n".join(lines)
+
+    def _next_parallel_scene(self):
+        """Switch to the next parallel scene."""
+        if not self.parallel_scenes:
+            return "No parallel scenes active."
+
+        session = self.campaign.current_session if self.campaign else None
+        if not session:
+            return "No active session."
+
+        current_idx = session.current_scene_index
+
+        # Find current parallel scene
+        current_ps_idx = None
+        for i, ps in enumerate(self.parallel_scenes):
+            if ps["scene_index"] == current_idx:
+                current_ps_idx = i
+                break
+
+        # Move to next
+        if current_ps_idx is not None:
+            next_idx = (current_ps_idx + 1) % len(self.parallel_scenes)
+        else:
+            next_idx = 0
+
+        next_ps = self.parallel_scenes[next_idx]
+        session.current_scene_index = next_ps["scene_index"]
+
+        # Update table state for new scene
+        self._initialize_table_state()
+
+        return f"\n--- Switching to: {next_ps['description']} ---\n" + \
+               f"Members: {', '.join(next_ps['members'])}\n"
+
+    def _switch_parallel_scene(self, scene_num):
+        """Switch to a specific parallel scene by number."""
+        if not self.parallel_scenes:
+            return "No parallel scenes active."
+
+        if scene_num < 1 or scene_num > len(self.parallel_scenes):
+            return f"Invalid scene number. Use 1-{len(self.parallel_scenes)}."
+
+        session = self.campaign.current_session if self.campaign else None
+        if not session:
+            return "No active session."
+
+        ps = self.parallel_scenes[scene_num - 1]
+        session.current_scene_index = ps["scene_index"]
+
+        # Update table state for new scene
+        self._initialize_table_state()
+
+        return f"\n--- Switching to: {ps['description']} ---\n" + \
+               f"Members: {', '.join(ps['members'])}\n"
+
+    def _rejoin_party(self):
+        """Rejoin all parallel groups into a single scene."""
+        if not self.parallel_scenes:
+            return "No parallel scenes to rejoin."
+
+        session = self.campaign.current_session if self.campaign else None
+        if not session:
+            return "No active session."
+
+        # Gather all members
+        all_members = []
+        for ps in self.parallel_scenes:
+            all_members.extend(ps['members'])
+
+        # Create a rejoined scene
+        print("\n--- Rejoining the party ---\n")
+
+        scene_name = input("Rejoin scene name [Regrouped]: ").strip() or "Regrouped"
+        scene_location = input("Location: ").strip() or "Unknown"
+        scene_desc = input("Description: ").strip()
+
+        scene = session.new_scene(
+            name=scene_name,
+            location=scene_location,
+            description=scene_desc
+        )
+
+        # Add all members
+        for member in all_members:
+            scene.add_character(member)
+
+        # Clear parallel scenes
+        self.parallel_scenes = []
+
+        # Update table state
+        self._initialize_table_state()
+
+        # Log the rejoin
+        self.table_state.log_action(
+            "Party",
+            "rejoin",
+            f"Party regrouped at {scene_location}"
+        )
+
+        return f"\nThe party has regrouped. All {len(all_members)} members present."
+
     def get_help_text(self):
         """Get help text for available commands."""
         return """
@@ -2378,6 +2783,19 @@ TABLE STATE (play flow management):
   /state <char> <action>    - Set what a character is currently doing
   /around [question]        - Go around table, each PC responds in turn
   @<name> <text>            - Direct narration to specific character(s)
+
+PARTY VOTING:
+  /vote <question>          - Start majority vote (party acts together)
+  /vote split <question>    - Start split vote (party can divide)
+  /vote status              - Show current vote
+  /vote resolve             - Apply vote results
+  /vote cancel              - Cancel current vote
+
+PARALLEL SCENES (split party):
+  /parallel                 - Show parallel scene status
+  /parallel next            - Switch to next group's scene
+  /parallel <number>        - Switch to specific scene
+  /parallel rejoin          - Rejoin all groups into one scene
 
 Examples:
   /campaign new wizard              - Full interactive setup
