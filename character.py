@@ -29,7 +29,8 @@ class Character:
 
     def __init__(self, name, special, skills, background, personality_traits,
                  inventory=None, level=1, experience=0, health=None,
-                 radiation=0, conditions=None, body_parts=None, player="GM",
+                 radiation=0, conditions=None, body_parts=None, body_type=None,
+                 body_part_damage=None, player="GM",
                  affiliation="Independent", aliases=None, perks=None):
         self.name = name
         self.player = player
@@ -84,14 +85,22 @@ class Character:
         self.conditions = conditions or []
 
         # Initialize body parts
-        if body_parts is None:
-            self.body_parts = BodyParts()  # Default humanoid
-        elif isinstance(body_parts, BodyParts):
-            self.body_parts = body_parts
-        elif isinstance(body_parts, dict):
-            self.body_parts = BodyParts.from_dict(body_parts)
+        # Supports: body_type (template name), body_parts (dict), or BodyParts object
+        if body_parts is not None:
+            if isinstance(body_parts, BodyParts):
+                self.body_parts = body_parts
+            elif isinstance(body_parts, dict):
+                self.body_parts = BodyParts.from_dict(body_parts)
+            else:
+                self.body_parts = BodyParts()
+        elif body_type is not None:
+            # New compact format: body_type + optional body_part_damage
+            self.body_parts = BodyParts.from_dict({
+                'body_type': body_type,
+                'body_part_damage': body_part_damage or {}
+            })
         else:
-            self.body_parts = BodyParts()
+            self.body_parts = BodyParts()  # Default humanoid
 
     def get_effective_stat(self, stat_name):
         """
@@ -422,10 +431,16 @@ class Character:
             'radiation': self.radiation,
             'conditions': self.conditions,
             'inventory': self.inventory.to_dict(),
-            'body_parts': self.body_parts.to_dict()
         }
         if self.aliases:
             data['aliases'] = self.aliases
+
+        # Use compact body parts format
+        body_data = self.body_parts.to_dict()
+        data['body_type'] = body_data.get('body_type', 'humanoid')
+        if 'body_part_damage' in body_data:
+            data['body_part_damage'] = body_data['body_part_damage']
+
         return data
 
     def save_to_yaml(self, yaml_path):

@@ -1,11 +1,18 @@
 # Creature Templates for Wasteland GM
 # Each template defines an archetype that can be spawned into combat
+# personality_traits are combined with the agent's traits for NPC behavior
+# default_agent sets initial disposition (can be changed mid-game)
 
 templates:
   # === RAIDERS ===
   Raider:
     category: humanoid
     description: "Common wasteland bandits. Poorly equipped but dangerous in numbers."
+    default_agent: npc_hostile
+    personality_traits:
+      - aggressive
+      - greedy
+      - respects strength
     special:
       base:
         strength: 5
@@ -43,6 +50,11 @@ templates:
   Raider Psycho:
     category: humanoid
     description: "Drug-fueled raider berserker. Hits hard, ignores pain."
+    default_agent: npc_hostile
+    personality_traits:
+      - unhinged
+      - pain-resistant
+      - loves violence
     special:
       base:
         strength: 7
@@ -78,7 +90,12 @@ templates:
 
   Raider Boss:
     category: humanoid
-    description: "Raider leader. Better equipped and more dangerous."
+    description: "Raider leader. Better equipped and more cunning."
+    default_agent: npc_hostile
+    personality_traits:
+      - cunning
+      - commands respect
+      - ruthless but pragmatic
     special:
       base:
         strength: 6
@@ -119,6 +136,11 @@ templates:
   Feral Ghoul:
     category: humanoid
     description: "Mindless irradiated humans. Fast and relentless."
+    default_agent: npc_hostile
+    personality_traits:
+      - mindless
+      - relentless
+      - drawn to sound
     special:
       base:
         strength: 6
@@ -149,6 +171,11 @@ templates:
   Glowing One:
     category: humanoid
     description: "Highly irradiated ghoul that emits deadly radiation."
+    default_agent: npc_hostile
+    personality_traits:
+      - mindless
+      - radioactive aura
+      - heals nearby ghouls
     special:
       base:
         strength: 7
@@ -181,6 +208,11 @@ templates:
   Super Mutant:
     category: humanoid
     description: "FEV-mutated humans. Strong, tough, and aggressive."
+    default_agent: npc_hostile
+    personality_traits:
+      - hates humans
+      - simple-minded
+      - values strength
     special:
       base:
         strength: 9
@@ -216,6 +248,11 @@ templates:
   Super Mutant Brute:
     category: humanoid
     description: "Larger, stronger super mutant variant."
+    default_agent: npc_hostile
+    personality_traits:
+      - brutal
+      - nearly mindless
+      - unstoppable rage
     special:
       base:
         strength: 10
@@ -250,6 +287,11 @@ templates:
   Deathclaw:
     category: deathclaw
     description: "Apex predator of the wasteland. Extremely dangerous."
+    default_agent: npc_hostile
+    personality_traits:
+      - territorial
+      - apex predator
+      - fearless
     special:
       base:
         strength: 10
@@ -301,6 +343,10 @@ templates:
   Radroach:
     category: insect
     description: "Giant irradiated cockroach. Weak but numerous."
+    default_agent: npc_hostile
+    personality_traits:
+      - skittish
+      - swarms when threatened
     special:
       base:
         strength: 2
@@ -337,6 +383,10 @@ templates:
   Bloatfly:
     category: insect
     description: "Mutated fly that spits acidic projectiles."
+    default_agent: npc_hostile
+    personality_traits:
+      - aggressive when disturbed
+      - territorial
     special:
       base:
         strength: 2
@@ -373,6 +423,10 @@ templates:
   Mole Rat:
     category: beast
     description: "Burrowing mutant rodent. Attacks in packs."
+    default_agent: npc_hostile
+    personality_traits:
+      - pack hunter
+      - burrows underground
     special:
       base:
         strength: 4
@@ -422,6 +476,11 @@ templates:
   Protectron:
     category: robot
     description: "Pre-war security robot. Slow but durable."
+    default_agent: npc_neutral
+    personality_traits:
+      - follows programming
+      - announces warnings
+      - protects designated area
     special:
       base:
         strength: 6
@@ -477,6 +536,11 @@ templates:
   Settler:
     category: humanoid
     description: "Wasteland civilian. Not a threat unless provoked."
+    default_agent: npc_neutral
+    personality_traits:
+      - hardworking
+      - wary of strangers
+      - knows local area
     special:
       base:
         strength: 4
@@ -506,3 +570,81 @@ templates:
     name_patterns:
       - "Settler #{n}"
       - "Wastelander #{n}"
+
+  # === FRIENDLY NPCS ===
+  Caravan Guard:
+    category: humanoid
+    description: "Armed escort protecting trade caravans."
+    default_agent: npc_neutral
+    personality_traits:
+      - professional
+      - alert
+      - loyal to employer
+    special:
+      base:
+        strength: 6
+        perception: 6
+        endurance: 6
+        charisma: 4
+        intelligence: 4
+        agility: 5
+        luck: 5
+      variance: 1
+    level:
+      base: 3
+      variance: 2
+    skills:
+      - Guns
+      - Perception
+    affiliation: Traders Guild
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "15-40"
+      chance:
+        - item: "10mm Pistol"
+          chance: 0.5
+        - item: "Stimpak"
+          chance: 0.3
+    name_patterns:
+      - "Caravan Guard #{n}"
+
+  Wandering Merchant:
+    category: humanoid
+    description: "Traveling trader with goods to sell."
+    default_agent: npc_friendly
+    personality_traits:
+      - always looking for deals
+      - knows the trade routes
+      - friendly but shrewd
+    special:
+      base:
+        strength: 4
+        perception: 6
+        endurance: 5
+        charisma: 7
+        intelligence: 6
+        agility: 4
+        luck: 6
+      variance: 2
+    level:
+      base: 2
+      variance: 2
+    skills:
+      - Barter
+      - Speech
+    affiliation: Traders Guild
+    loot_table:
+      guaranteed:
+        - item: "Bottle Caps"
+          quantity: "50-150"
+      chance:
+        - item: "Stimpak"
+          quantity: "2-5"
+          chance: 0.7
+        - item: "Purified Water"
+          quantity: "3-6"
+          chance: 0.6
+    name_patterns:
+      - "Merchant #{n}"
+      - "Trader #{n}"

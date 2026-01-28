@@ -73,6 +73,10 @@ class CreatureTemplate:
     # Description for GM reference
     description: str = ""
 
+    # Personality and agent
+    personality_traits: list = field(default_factory=list)
+    default_agent: str = "npc_neutral"  # Agent filename (without .yaml)
+
     @classmethod
     def from_dict(cls, name: str, data: dict) -> "CreatureTemplate":
         """Create template from YAML dict."""
@@ -123,41 +127,27 @@ class CreatureTemplate:
         # Name patterns
         template.name_patterns = data.get("name_patterns", ["{name} #{n}"])
 
+        # Personality and agent
+        template.personality_traits = data.get("personality_traits", [])
+        template.default_agent = data.get("default_agent", "npc_neutral")
+
         return template
 
-    def get_body_parts_definition(self) -> dict:
-        """Get body parts definition based on category or custom definition."""
-        if self.body_parts_definition:
-            return self.body_parts_definition
-
-        # Default body parts by category
-        category_parts = {
-            "humanoid": BodyParts.HUMANOID_PARTS,
-            "beast": {
-                'head': {'hit_chance_modifier': -20, 'damage_multiplier': 2.0},
-                'body': {'hit_chance_modifier': 0, 'damage_multiplier': 1.0},
-                'front left leg': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-                'front right leg': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-                'rear left leg': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-                'rear right leg': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-            },
-            "insect": {
-                'head': {'hit_chance_modifier': -20, 'damage_multiplier': 2.0},
-                'thorax': {'hit_chance_modifier': 0, 'damage_multiplier': 1.0},
-                'abdomen': {'hit_chance_modifier': 5, 'damage_multiplier': 1.5},
-            },
-            "deathclaw": {
-                'head': {'hit_chance_modifier': -25, 'damage_multiplier': 2.5},
-                'torso': {'hit_chance_modifier': 0, 'damage_multiplier': 1.0},
-                'left arm': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-                'right arm': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-                'left leg': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-                'right leg': {'hit_chance_modifier': -10, 'damage_multiplier': 0.75},
-                'tail': {'hit_chance_modifier': -15, 'damage_multiplier': 0.5},
-            }
+    def get_body_type(self) -> str:
+        """Get body type template name based on category."""
+        # Map categories to body part template names
+        category_to_body_type = {
+            "humanoid": "humanoid",
+            "beast": "beast",
+            "insect": "insect",
+            "deathclaw": "deathclaw",
+            "robot": "robot",
         }
+        return category_to_body_type.get(self.category, "humanoid")
 
-        return category_parts.get(self.category, BodyParts.HUMANOID_PARTS)
+    def get_body_parts_definition(self) -> Optional[dict]:
+        """Get custom body parts definition if specified in template."""
+        return self.body_parts_definition
 
 
 class CreatureInstance:
@@ -194,17 +184,66 @@ class CreatureInstance:
         self.conditions = []
         self.aliases = []
 
-        # Always GM-controlled
-        self.player = "GM"
+        # Personality from template
+        self.personality_traits = list(template.personality_traits)
 
-        # Body parts
-        self.body_parts = BodyParts(template.get_body_parts_definition())
+        # Background generated from template
+        self.background = template.description
+
+        # Agent for NPC behavior (can be changed mid-game)
+        self.player = self._load_agent(template.default_agent)
+
+        # Body parts - use template definition or body_type from category
+        custom_parts = template.get_body_parts_definition()
+        if custom_parts:
+            self.body_parts = BodyParts(part_definitions=custom_parts)
+        else:
+            self.body_parts = BodyParts(body_type=template.get_body_type())
 
         # Loot (pre-rolled on death)
         self._loot = None
 
         # Gear (equipped items for display/combat)
         self.gear = []
+
+        # Minimal inventory interface for compatibility
+        self._inventory_items = []
+
+    def _load_agent(self, agent_name: str):
+        """Load an agent by name. Returns Agent instance or 'GM' string."""
+        if not agent_name:
+            return "GM"
+
+        from agent import Agent
+        agents_dir = Path(__file__).parent.parent / "agents"
+
+        # Try with and without .yaml extension
+        agent_file = agents_dir / f"{agent_name}.yaml"
+        if not agent_file.exists():
+            agent_file = agents_dir / agent_name
+        if not agent_file.exists():
+            return "GM"
+
+        try:
+            return Agent.from_yaml(str(agent_file))
+        except Exception:
+            return "GM"
+
+    def set_agent(self, agent_name: str) -> bool:
+        """
+        Change the creature's agent mid-game.
+
+        Args:
+            agent_name: Name of agent file (e.g., "npc_friendly", "npc_hostile")
+
+        Returns:
+            bool: True if agent was changed successfully
+        """
+        new_agent = self._load_agent(agent_name)
+        if new_agent != "GM" or agent_name == "":
+            self.player = new_agent
+            return True
+        return False
 
     # === Character-compatible interface ===
 
@@ -290,6 +329,14 @@ class CreatureInstance:
 
         return self._loot
 
+    @property
+    def inventory(self):
+        """Minimal inventory interface for agent compatibility."""
+        class MinimalInventory:
+            def __init__(self, items):
+                self.items = items
+        return MinimalInventory(self._inventory_items)
+
     def promote_to_character(self, new_name: str = None):
         """
         Convert this creature to a full Character.
@@ -310,8 +357,8 @@ class CreatureInstance:
             name=name,
             special=SPECIALStats.from_dict(special_dict),
             skills=self.skills.copy(),
-            background=f"Former {self.template.name}. Promoted from creature.",
-            personality_traits=[],
+            background=self.background or f"Former {self.template.name}.",
+            personality_traits=self.personality_traits.copy(),
             level=self.level,
             health=self.health.copy(),
             conditions=self.conditions.copy(),

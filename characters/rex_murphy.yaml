@@ -1,0 +1,39 @@
+name: Rex Murphy
+aliases:
+  - Rex
+  - Murph
+  - That Crazy Bastard
+affiliation: Independent
+special:
+  strength: 7
+  perception: 4
+  endurance: 7
+  charisma: 7
+  intelligence: 4
+  agility: 5
+  luck: 9
+level: 5
+skills:
+  - Melee
+  - Speech
+  - Explosives
+  - Survival
+background: >-
+  Nobody knows where Rex came from, including Rex. He woke up three years ago
+  in a ditch outside New Vegas with no memory, a head wound, and a Super Sledge
+  clutched in his hands. Since then he's been wandering, collecting stories,
+  making friends with the strangest people, and somehow surviving situations
+  that should have killed him ten times over. He figures if he can't remember
+  his past, he might as well make his future interesting.
+personality_traits:
+  - Boundlessly curious about everything
+  - Talks to anyone and anything
+  - Makes impulsive decisions based on "gut feeling"
+  - Collects random junk that "might be important"
+inventory:
+  - Super Sledge
+  - Frag Grenade x3
+  - Nuka-Cola x4
+  - Strange Meat x2
+  - Lucky 8-Ball
+  - Bottle Caps x200

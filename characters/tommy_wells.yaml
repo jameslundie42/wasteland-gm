@@ -1,0 +1,33 @@
+name: Tommy Wells
+aliases:
+  - Tommy
+  - Kid
+affiliation: Settlers
+special:
+  strength: 5
+  perception: 5
+  endurance: 5
+  charisma: 6
+  intelligence: 5
+  agility: 6
+  luck: 8
+level: 2
+skills:
+  - Sneak
+  - Lockpick
+background: >-
+  A young scavenger from a small farming settlement who's never been more than
+  a day's walk from home. His parents sent him out to find medicine for his
+  sick sister. He's got more luck than skill, and he knows it. Everything in
+  the wasteland seems bigger and scarier than the stories made it sound.
+personality_traits:
+  - Eager but inexperienced
+  - Trusts people too easily
+  - Surprisingly lucky
+  - Homesick and worried about family
+inventory:
+  - Pipe Pistol
+  - Stimpak x2
+  - Purified Water x3
+  - Food x5
+  - Bottle Caps x75

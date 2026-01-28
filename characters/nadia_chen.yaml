@@ -1,0 +1,39 @@
+name: Nadia Chen
+aliases:
+  - Nadia
+  - Chen
+  - Ghost
+affiliation: Independent
+special:
+  strength: 4
+  perception: 9
+  endurance: 5
+  charisma: 4
+  intelligence: 8
+  agility: 8
+  luck: 5
+level: 6
+skills:
+  - Sneak
+  - Guns
+  - Lockpick
+  - Science
+  - Perception
+background: >-
+  Ex-Enclave intelligence operative who defected after witnessing one too many
+  "necessary sacrifices." She uses her training to survive as a freelance
+  scout and infiltrator. Every job is planned down to the second, every
+  contingency accounted for. She doesn't believe in luck - only preparation.
+personality_traits:
+  - Methodical and precise
+  - Always has an exit strategy
+  - Distrusts authority and institutions
+  - Values competence over personality
+inventory:
+  - Silenced 10mm Pistol
+  - Combat Knife
+  - Stealth Boy x2
+  - Bobby Pin x20
+  - Stimpak x4
+  - Binoculars
+  - Bottle Caps x300

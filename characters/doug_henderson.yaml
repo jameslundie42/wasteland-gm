@@ -1,0 +1,37 @@
+name: Doug Henderson
+aliases:
+  - Doug
+  - Hendo
+  - Big Doug
+affiliation: Settlers
+special:
+  strength: 7
+  perception: 5
+  endurance: 7
+  charisma: 6
+  intelligence: 5
+  agility: 4
+  luck: 6
+level: 4
+skills:
+  - Melee
+  - Repair
+  - Survival
+background: >-
+  A former caravan guard who got tired of the road and settled down to become
+  a handyman. He fixes things, carries heavy stuff, and doesn't ask too many
+  questions. Doug's not complicated - he likes cold beer, a warm bed, and
+  helping folks who need it. He joined up with this group because they seemed
+  like decent people and the caps are fair.
+personality_traits:
+  - Reliable and uncomplicated
+  - Happy to follow someone else's lead
+  - Speaks up when something seems wrong
+  - Enjoys simple pleasures
+inventory:
+  - Sledgehammer
+  - Leather Armor
+  - Stimpak x3
+  - Purified Water x4
+  - Tool Kit
+  - Bottle Caps x120

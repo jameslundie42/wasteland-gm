@@ -450,6 +450,12 @@ class Session:
                 return "Usage: /loot <creature_name> [to <character>]"
             return self._loot_creature(parts[1:])
 
+        # Change agent for character/creature
+        elif command == "agent":
+            if len(parts) < 2:
+                return self._list_agents()
+            return self._change_agent(parts[1:])
+
         # Help command
         elif command == "help" or command == "h":
             return self.get_help_text()
@@ -1682,6 +1688,81 @@ class Session:
 
         return "\n".join(lines)
 
+    # === AGENT COMMAND HANDLERS ===
+
+    def _list_agents(self):
+        """List available NPC agents."""
+        agents_dir = Path(__file__).parent / "agents"
+        if not agents_dir.exists():
+            return "No agents directory found."
+
+        # Find all NPC agents (npc_*.yaml)
+        npc_agents = sorted(agents_dir.glob("npc_*.yaml"))
+
+        if not npc_agents:
+            return "No NPC agents found."
+
+        lines = ["\n=== Available NPC Agents ==="]
+        lines.append("Use: /agent <creature/character> <agent_name>\n")
+
+        for agent_file in npc_agents:
+            agent_name = agent_file.stem
+            try:
+                agent = Agent.from_yaml(str(agent_file))
+                lines.append(f"  {agent_name}: {agent.name}")
+            except Exception:
+                lines.append(f"  {agent_name}: (error loading)")
+
+        lines.append("\nDisposition-based agents:")
+        lines.append("  npc_hostile  - Aggressive, threatening behavior")
+        lines.append("  npc_neutral  - Guarded, transactional behavior")
+        lines.append("  npc_friendly - Helpful, cooperative behavior")
+
+        return "\n".join(lines)
+
+    def _change_agent(self, parts):
+        """Change the agent for a character or creature."""
+        if len(parts) < 2:
+            return "Usage: /agent <creature/character> <agent_name>"
+
+        # Parse target and agent name
+        # Agent name is always last, target may be multi-word
+        agent_name = parts[-1]
+        target_name = " ".join(parts[:-1])
+
+        # Find the target (creature or character)
+        target = self.get_character(target_name)
+        if not target:
+            return f"Character/creature '{target_name}' not found."
+
+        # Validate agent exists
+        agents_dir = Path(__file__).parent / "agents"
+        agent_file = agents_dir / f"{agent_name}.yaml"
+        if not agent_file.exists():
+            available = [f.stem for f in agents_dir.glob("npc_*.yaml")]
+            return f"Agent not found: {agent_name}\nAvailable NPC agents: {', '.join(available)}"
+
+        # Handle creature vs character differently
+        if isinstance(target, CreatureInstance):
+            if target.set_agent(agent_name):
+                # Get agent display name
+                try:
+                    agent = Agent.from_yaml(str(agent_file))
+                    agent_display = agent.name
+                except Exception:
+                    agent_display = agent_name
+                return f"Changed {target.name}'s agent to: {agent_display}"
+            else:
+                return f"Failed to change agent for {target.name}."
+        else:
+            # Regular Character
+            try:
+                agent = Agent.from_yaml(str(agent_file))
+                target.player = agent
+                return f"Changed {target.name}'s agent to: {agent.name}"
+            except Exception as e:
+                return f"Error loading agent: {e}"
+
     def get_help_text(self):
         """Get help text for available commands."""
         return """
@@ -1758,6 +1839,8 @@ CREATURES:
   /promote <creature> [name]- Convert creature to full Character
   /loot <creature>          - Show loot from dead creature
   /loot <creature> to <char>- Give loot to character
+  /agent                    - List available NPC agents
+  /agent <target> <agent>   - Change creature/character agent
 
 Examples:
   /campaign new Wasteland Adventures

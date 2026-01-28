@@ -1,0 +1,106 @@
+# Body Part Templates
+# Define base stats for different body types
+# Characters only store body_type + damage delta
+
+templates:
+  humanoid:
+    parts:
+      head:
+        hit_chance_modifier: -20
+        damage_multiplier: 2.0
+      torso:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      left arm:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      right arm:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      left leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      right leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+
+  deathclaw:
+    parts:
+      head:
+        hit_chance_modifier: -25
+        damage_multiplier: 2.5
+      torso:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      left arm:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      right arm:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      left leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      right leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      tail:
+        hit_chance_modifier: -15
+        damage_multiplier: 0.5
+
+  insect:
+    parts:
+      head:
+        hit_chance_modifier: -15
+        damage_multiplier: 2.0
+      thorax:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      abdomen:
+        hit_chance_modifier: 5
+        damage_multiplier: 1.5
+
+  beast:
+    parts:
+      head:
+        hit_chance_modifier: -15
+        damage_multiplier: 2.0
+      body:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      front left leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      front right leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      rear left leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+      rear right leg:
+        hit_chance_modifier: -10
+        damage_multiplier: 0.75
+
+  robot:
+    parts:
+      head:
+        hit_chance_modifier: -10
+        damage_multiplier: 1.5
+      torso:
+        hit_chance_modifier: 0
+        damage_multiplier: 1.0
+      left arm:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      right arm:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      left leg:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      right leg:
+        hit_chance_modifier: -5
+        damage_multiplier: 0.75
+      combat inhibitor:
+        hit_chance_modifier: -25
+        damage_multiplier: 3.0
