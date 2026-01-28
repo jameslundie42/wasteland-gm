@@ -32,6 +32,8 @@ class CharacterRef:
     notes: str = ""  # Brief notes for KNOWN characters
     aliases: list = field(default_factory=list)
     affiliation: str = "Unknown"
+    is_npc: bool = False  # True for NPCs, False for Player Characters
+    agent: str = ""  # Agent name for PCs (e.g., "veteran_marcus")
 
     # Cached full character (only loaded when ACTIVE)
     _character: Optional[object] = field(default=None, repr=False)
@@ -50,7 +52,7 @@ class CharacterRef:
         self._character = None
 
     def to_dict(self):
-        return {
+        data = {
             "name": self.name,
             "presence": self.presence.value,
             "file_path": self.file_path,
@@ -58,6 +60,13 @@ class CharacterRef:
             "aliases": self.aliases,
             "affiliation": self.affiliation
         }
+        # Only include is_npc if True (NPCs)
+        if self.is_npc:
+            data["is_npc"] = True
+        # Only include agent if set (PCs)
+        if self.agent:
+            data["agent"] = self.agent
+        return data
 
     @classmethod
     def from_dict(cls, data):
@@ -67,7 +76,9 @@ class CharacterRef:
             file_path=data.get("file_path"),
             notes=data.get("notes", ""),
             aliases=data.get("aliases", []),
-            affiliation=data.get("affiliation", "Unknown")
+            affiliation=data.get("affiliation", "Unknown"),
+            is_npc=data.get("is_npc", False),
+            agent=data.get("agent", "")
         )
 
 
@@ -320,7 +331,8 @@ class Campaign:
         return session.current_scene if session else None
 
     def register_character(self, name, file_path=None, presence=CharacterPresence.KNOWN,
-                          notes="", aliases=None, affiliation="Unknown"):
+                          notes="", aliases=None, affiliation="Unknown",
+                          is_npc=False, agent=""):
         """Add or update a character reference."""
         if name in self.characters:
             ref = self.characters[name]
@@ -333,6 +345,9 @@ class Campaign:
             if affiliation != "Unknown":
                 ref.affiliation = affiliation
             ref.presence = presence
+            ref.is_npc = is_npc
+            if agent:
+                ref.agent = agent
         else:
             self.characters[name] = CharacterRef(
                 name=name,
@@ -340,7 +355,9 @@ class Campaign:
                 file_path=file_path,
                 notes=notes,
                 aliases=aliases or [],
-                affiliation=affiliation
+                affiliation=affiliation,
+                is_npc=is_npc,
+                agent=agent
             )
         return self.characters[name]
 
@@ -404,10 +421,20 @@ class Campaign:
         path = Path(path)
         path.parent.mkdir(exist_ok=True)
 
+        # Separate PCs and NPCs for cleaner YAML
+        player_characters = {}
+        notable_npcs = {}
+        for name, ref in self.characters.items():
+            if ref.is_npc:
+                notable_npcs[name] = ref.to_dict()
+            else:
+                player_characters[name] = ref.to_dict()
+
         data = {
             "name": self.name,
             "created": self.created,
-            "characters": {n: r.to_dict() for n, r in self.characters.items()},
+            "player_characters": player_characters,
+            "notable_npcs": notable_npcs,
             "sessions": [s.to_dict() for s in self.sessions],
             "current_session_index": self.current_session_index,
             "locations": self.locations,
@@ -437,9 +464,21 @@ class Campaign:
             notes=data.get("notes", "")
         )
 
-        # Load character refs
-        for name, ref_data in data.get("characters", {}).items():
-            campaign.characters[name] = CharacterRef.from_dict(ref_data)
+        # Load character refs - support both new and legacy formats
+        # New format: player_characters + notable_npcs
+        # Legacy format: characters
+        if "player_characters" in data or "notable_npcs" in data:
+            # New format
+            for name, ref_data in data.get("player_characters", {}).items():
+                ref_data["is_npc"] = False
+                campaign.characters[name] = CharacterRef.from_dict(ref_data)
+            for name, ref_data in data.get("notable_npcs", {}).items():
+                ref_data["is_npc"] = True
+                campaign.characters[name] = CharacterRef.from_dict(ref_data)
+        else:
+            # Legacy format
+            for name, ref_data in data.get("characters", {}).items():
+                campaign.characters[name] = CharacterRef.from_dict(ref_data)
 
         # Load sessions
         campaign.sessions = [SessionState.from_dict(s) for s in data.get("sessions", [])]

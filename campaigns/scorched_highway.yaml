@@ -1,0 +1,148 @@
+name: The Scorched Highway
+created: '2026-01-01T12:00:00.000000'
+
+player_characters:
+  Elena Vasquez:
+    name: Elena Vasquez
+    agent: veteran_marcus
+    presence: active
+    file_path: characters/elena_vasquez.yaml
+    notes: 'Ex-Ranger. Haunted by her past but a deadly shot.'
+    aliases:
+    - Elena
+    - Vasquez
+    - The Burned Woman
+    affiliation: Independent
+  Tommy Wells:
+    name: Tommy Wells
+    agent: newbie_alex
+    presence: active
+    file_path: characters/tommy_wells.yaml
+    notes: 'Young scavenger on his first real adventure.'
+    aliases:
+    - Tommy
+    - Kid
+    affiliation: Settlers
+  Nadia Chen:
+    name: Nadia Chen
+    agent: optimizer_sam
+    presence: active
+    file_path: characters/nadia_chen.yaml
+    notes: 'Ex-Enclave infiltrator. Always has a plan.'
+    aliases:
+    - Nadia
+    - Chen
+    - Ghost
+    affiliation: Independent
+
+notable_npcs:
+  Doc Rivera:
+    name: Doc Rivera
+    is_npc: true
+    presence: active
+    file_path: characters/doc.yaml
+    notes: 'Party medic. Cynical but reliable.'
+    aliases:
+    - Doc
+    - Rivera
+    affiliation: Settlers
+  Jack the Trader:
+    name: Jack the Trader
+    is_npc: true
+    presence: active
+    file_path: characters/jack.yaml
+    notes: 'Knows the trade routes. Has contacts everywhere.'
+    aliases:
+    - Jack
+    - Trader
+    affiliation: Traders Guild
+
+sessions:
+- name: Session 1 - The Broken Bridge
+  started: '2026-01-01T12:00:00.000000'
+  scenes:
+  - name: Dusty Crossroads
+    location: Highway 95 Junction
+    description: >-
+      The old highway splits here - north toward the mountains, east toward
+      the coast. A rusted pre-war sign points to "Ridgeview - 12 mi" but
+      everyone knows Ridgeview burned years ago. A makeshift camp has grown
+      around an old gas station, where travelers trade news and supplies.
+    present_characters:
+    - Elena Vasquez
+    - Tommy Wells
+    - Nadia Chen
+    - Doc Rivera
+    - Jack the Trader
+  - name: The Collapsed Overpass
+    location: Highway 95 North
+    description: >-
+      The overpass that once carried traffic over the ravine has partially
+      collapsed. Raiders have been spotted using it as a toll station,
+      demanding caps or blood from anyone trying to cross. The detour adds
+      two days to the journey.
+    present_characters:
+    - Elena Vasquez
+    - Tommy Wells
+    - Nadia Chen
+    - Doc Rivera
+    - Jack the Trader
+  current_scene_index: 0
+  session_notes: >-
+    The party is heading north to deliver medical supplies to a settlement
+    called Millbrook. Jack has a contact there who's paying well. Problem is,
+    the direct route is blocked by raiders at the collapsed overpass.
+  active_characters:
+  - Elena Vasquez
+  - Tommy Wells
+  - Nadia Chen
+  - Doc Rivera
+  - Jack the Trader
+current_session_index: 0
+
+locations:
+  Highway 95 Junction:
+    description: Major crossroads where the old highways meet
+    known_dangers: Occasional raider patrols
+  Ridgeview Ruins:
+    description: Burned-out town, picked clean by scavengers
+    known_dangers: Feral ghouls in the basements
+  Millbrook:
+    description: Small farming settlement in the northern hills
+    known_dangers: None known
+
+factions:
+  Highway Raiders:
+    disposition: hostile
+    notes: Control the collapsed overpass, demand tolls
+  Millbrook Settlers:
+    disposition: friendly
+    notes: Desperate for medical supplies
+  Traders Guild:
+    disposition: neutral
+    notes: Jack's people, good for information and deals
+
+quests:
+- name: Medical Run to Millbrook
+  status: active
+  description: >-
+    Deliver a crate of medical supplies to Millbrook settlement.
+    Payment: 500 caps on delivery.
+  objectives:
+  - Get past the raider toll station
+  - Reach Millbrook safely
+  - Deliver supplies to Elder Morrison
+
+notes: >-
+  Example campaign demonstrating the Wasteland GM system.
+
+  Player Characters:
+  - Elena (veteran_marcus) - Experienced player, narrative-driven
+  - Tommy (newbie_alex) - New player, learning the ropes
+  - Nadia (optimizer_sam) - Tactical player, always planning
+
+  Suggested hooks:
+  - Pay the raiders' toll (expensive but safe)
+  - Fight through the raiders (dangerous but rewarding)
+  - Find an alternate route through Ridgeview Ruins (ghouls)
+  - Negotiate with the raider boss (Speech check)

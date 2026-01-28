@@ -64,11 +64,21 @@ class Session:
 
         # Register with campaign if present
         if self.campaign:
+            # Determine if NPC and get agent name
+            is_npc = False
+            agent_name = ""
+            if isinstance(character.player, Agent):
+                is_npc = getattr(character.player, 'is_npc', False)
+                if not is_npc:
+                    agent_name = character.player.name if hasattr(character.player, 'name') else ""
+
             self.campaign.register_character(
                 name=character.name,
                 presence=CharacterPresence.ACTIVE,
                 aliases=character.aliases,
-                affiliation=character.affiliation
+                affiliation=character.affiliation,
+                is_npc=is_npc,
+                agent=agent_name
             )
             # Add to current session's active list
             if self.campaign.current_session:
@@ -921,8 +931,23 @@ class Session:
             return "No active campaign. Use /campaign new to create one."
 
         lines = [f"\n=== Campaign: {self.campaign.name} ==="]
-        lines.append(f"Characters known: {len(self.campaign.characters)}")
-        lines.append(f"Sessions: {len(self.campaign.sessions)}")
+
+        # Separate PCs and NPCs
+        pcs = [ref for ref in self.campaign.characters.values() if not ref.is_npc]
+        npcs = [ref for ref in self.campaign.characters.values() if ref.is_npc]
+
+        if pcs:
+            lines.append(f"\nPlayer Characters ({len(pcs)}):")
+            for ref in pcs:
+                agent_str = f" ({ref.agent})" if ref.agent else ""
+                lines.append(f"  - {ref.name}{agent_str}")
+
+        if npcs:
+            lines.append(f"\nNotable NPCs ({len(npcs)}):")
+            for ref in npcs:
+                lines.append(f"  - {ref.name}")
+
+        lines.append(f"\nSessions: {len(self.campaign.sessions)}")
 
         session = self.campaign.current_session
         if session:
@@ -999,7 +1024,8 @@ class Session:
         if not self.campaign:
             return "No active campaign."
 
-        synced = []
+        synced_pcs = []
+        synced_npcs = []
         for name, char in self.characters.items():
             # Skip creatures
             if isinstance(char, CreatureInstance):
@@ -1013,21 +1039,41 @@ class Session:
                 filepath = chars_dir / f"{safe_name}.yaml"
                 file_path = str(filepath) if filepath.exists() else None
 
+                # Determine if NPC based on player agent's is_npc attribute
+                is_npc = False
+                agent_name = ""
+                if isinstance(char.player, Agent):
+                    is_npc = getattr(char.player, 'is_npc', False)
+                    if not is_npc:
+                        # It's a PC - get the agent name
+                        agent_name = char.player.name if hasattr(char.player, 'name') else ""
+
                 self.campaign.register_character(
                     name=name,
                     file_path=file_path,
                     presence=CharacterPresence.ACTIVE,
                     aliases=char.aliases,
-                    affiliation=char.affiliation
+                    affiliation=char.affiliation,
+                    is_npc=is_npc,
+                    agent=agent_name
                 )
-                synced.append(name)
+
+                if is_npc:
+                    synced_npcs.append(name)
+                else:
+                    synced_pcs.append(name)
 
                 # Also add to current session's active list
                 if self.campaign.current_session:
                     self.campaign.current_session.add_to_session(name)
 
-        if synced:
-            return f"Synced {len(synced)} character(s) to campaign: {', '.join(synced)}"
+        if synced_pcs or synced_npcs:
+            parts = []
+            if synced_pcs:
+                parts.append(f"{len(synced_pcs)} PC(s): {', '.join(synced_pcs)}")
+            if synced_npcs:
+                parts.append(f"{len(synced_npcs)} NPC(s): {', '.join(synced_npcs)}")
+            return f"Synced {'; '.join(parts)}"
         return "All characters already registered with campaign."
 
     def _handle_scene_command(self, parts):
