@@ -31,12 +31,19 @@ class CharacterRef:
     file_path: Optional[str] = None  # Path to YAML if exists
     notes: str = ""  # Brief notes for KNOWN characters
     aliases: list = field(default_factory=list)
-    affiliation: str = "Unknown"
+    affiliations: list = field(default_factory=lambda: ["Unknown"])
+    allies: list = field(default_factory=list)
+    enemies: list = field(default_factory=list)
     is_npc: bool = False  # True for NPCs, False for Player Characters
     agent: str = ""  # Agent name for PCs (e.g., "veteran_marcus")
 
     # Cached full character (only loaded when ACTIVE)
     _character: Optional[object] = field(default=None, repr=False)
+
+    @property
+    def affiliation(self):
+        """Primary affiliation for backward compatibility."""
+        return self.affiliations[0] if self.affiliations else "Unknown"
 
     def get_character(self):
         """Load full character if ACTIVE and not cached."""
@@ -58,8 +65,13 @@ class CharacterRef:
             "file_path": self.file_path,
             "notes": self.notes,
             "aliases": self.aliases,
-            "affiliation": self.affiliation
+            "affiliations": self.affiliations
         }
+        # Only include allies/enemies if non-empty
+        if self.allies:
+            data["allies"] = self.allies
+        if self.enemies:
+            data["enemies"] = self.enemies
         # Only include is_npc if True (NPCs)
         if self.is_npc:
             data["is_npc"] = True
@@ -70,13 +82,21 @@ class CharacterRef:
 
     @classmethod
     def from_dict(cls, data):
+        # Handle legacy single affiliation format
+        affiliations = data.get("affiliations")
+        if affiliations is None:
+            legacy_aff = data.get("affiliation", "Unknown")
+            affiliations = [legacy_aff] if isinstance(legacy_aff, str) else legacy_aff
+
         return cls(
             name=data["name"],
             presence=CharacterPresence(data.get("presence", "unknown")),
             file_path=data.get("file_path"),
             notes=data.get("notes", ""),
             aliases=data.get("aliases", []),
-            affiliation=data.get("affiliation", "Unknown"),
+            affiliations=affiliations,
+            allies=data.get("allies", []),
+            enemies=data.get("enemies", []),
             is_npc=data.get("is_npc", False),
             agent=data.get("agent", "")
         )
@@ -331,9 +351,16 @@ class Campaign:
         return session.current_scene if session else None
 
     def register_character(self, name, file_path=None, presence=CharacterPresence.KNOWN,
-                          notes="", aliases=None, affiliation="Unknown",
-                          is_npc=False, agent=""):
+                          notes="", aliases=None, affiliation=None, affiliations=None,
+                          allies=None, enemies=None, is_npc=False, agent=""):
         """Add or update a character reference."""
+        # Handle legacy single affiliation
+        if affiliations is None:
+            if affiliation is not None:
+                affiliations = [affiliation] if isinstance(affiliation, str) else affiliation
+            else:
+                affiliations = ["Unknown"]
+
         if name in self.characters:
             ref = self.characters[name]
             if file_path:
@@ -342,8 +369,12 @@ class Campaign:
                 ref.notes = notes
             if aliases:
                 ref.aliases = aliases
-            if affiliation != "Unknown":
-                ref.affiliation = affiliation
+            if affiliations and affiliations != ["Unknown"]:
+                ref.affiliations = affiliations
+            if allies is not None:
+                ref.allies = allies
+            if enemies is not None:
+                ref.enemies = enemies
             ref.presence = presence
             ref.is_npc = is_npc
             if agent:
@@ -355,7 +386,9 @@ class Campaign:
                 file_path=file_path,
                 notes=notes,
                 aliases=aliases or [],
-                affiliation=affiliation,
+                affiliations=affiliations,
+                allies=allies or [],
+                enemies=enemies or [],
                 is_npc=is_npc,
                 agent=agent
             )

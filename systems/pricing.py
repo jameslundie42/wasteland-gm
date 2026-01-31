@@ -69,18 +69,36 @@ class PricingSystem:
     @staticmethod
     def get_affiliation_modifier(seller, buyer):
         """
-        Get price modifier based on buyer's affiliation.
-        Uses seller's agent price_modifiers config.
+        Get price modifier based on buyer's affiliations.
+        Uses seller's agent price_modifiers config first, then falls back
+        to faction relations system. Uses the best (most favorable) modifier
+        from any matching affiliation.
         """
         from agent import Agent
-        if not isinstance(seller.player, Agent):
-            return 1.0
+        from models.faction_relations import FactionRelations
 
-        price_mods = seller.player.price_modifiers
-        if not price_mods:
-            return 1.0
+        # Get buyer's affiliations (support both old and new format)
+        buyer_affiliations = getattr(buyer, 'affiliations', None)
+        if buyer_affiliations is None:
+            buyer_affiliations = [getattr(buyer, 'affiliation', 'Independent')]
 
-        return price_mods.get(buyer.affiliation, 1.0)
+        # First check seller's agent price_modifiers
+        if isinstance(seller.player, Agent):
+            price_mods = seller.player.price_modifiers
+            if price_mods:
+                best_modifier = None
+                for aff in buyer_affiliations:
+                    if aff in price_mods:
+                        mod = price_mods[aff]
+                        if best_modifier is None or mod < best_modifier:
+                            best_modifier = mod
+                if best_modifier is not None:
+                    return best_modifier
+
+        # Fall back to faction relations system
+        seller_affiliation = getattr(seller, 'affiliation', 'Independent')
+        relations = FactionRelations.get_instance()
+        return relations.get_price_modifier(seller_affiliation, buyer_affiliations)
 
     @staticmethod
     def calculate_price(item_name, quantity, seller, buyer, roll=None):

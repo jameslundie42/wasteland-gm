@@ -2,7 +2,14 @@ name: Doc Rivera
 aliases:
   - Doc
   - Rivera
-affiliation: Settlers
+affiliations:
+  - Settlers        # Primary affiliation
+  - Traders Guild   # Secondary affiliation
+allies:
+  - Jack
+  - Elena Vasquez
+enemies:
+  - Raiders
 special:
   strength: 4
   perception: 7

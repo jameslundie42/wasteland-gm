@@ -81,7 +81,9 @@ class Session:
                 name=character.name,
                 presence=CharacterPresence.ACTIVE,
                 aliases=character.aliases,
-                affiliation=character.affiliation,
+                affiliations=character.affiliations,
+                allies=character.allies,
+                enemies=character.enemies,
                 is_npc=is_npc,
                 agent=agent_name
             )
@@ -503,6 +505,28 @@ class Session:
         # Switch between parallel scenes
         elif command == "parallel":
             return self._handle_parallel_command(parts[1:])
+
+        # === FACTION COMMANDS ===
+
+        # List all factions
+        elif command == "factions":
+            return self._list_factions()
+
+        # Show faction details or set relation
+        elif command == "faction":
+            return self._handle_faction_command(parts[1:])
+
+        # Add ally to character
+        elif command == "ally":
+            if len(parts) < 3:
+                return "Usage: /ally <character> <target>"
+            return self._add_ally(parts[1:])
+
+        # Add enemy to character
+        elif command == "enemy":
+            if len(parts) < 3:
+                return "Usage: /enemy <character> <target>"
+            return self._add_enemy(parts[1:])
 
         # Help command
         elif command == "help" or command == "h":
@@ -2696,6 +2720,173 @@ Examples:
 
         return f"\nThe party has regrouped. All {len(all_members)} members present."
 
+    # === FACTION COMMAND HANDLERS ===
+
+    def _list_factions(self):
+        """List all factions and their relations."""
+        from models.faction_relations import FactionRelations, FactionRelation
+
+        relations = FactionRelations.get_instance()
+        factions = relations.get_all_factions()
+
+        if not factions:
+            return "No factions defined. Create data/faction_relations.yaml to define faction relations."
+
+        lines = ["\n=== Factions ===\n"]
+
+        for faction in factions:
+            allies = relations.get_allies(faction)
+            enemies = relations.get_enemies(faction)
+            friendly = relations.get_factions_by_relation(faction, FactionRelation.FRIENDLY)
+            unfriendly = relations.get_factions_by_relation(faction, FactionRelation.UNFRIENDLY)
+
+            lines.append(f"**{faction}**")
+            if allies:
+                lines.append(f"  Allied: {', '.join(allies)}")
+            if friendly:
+                lines.append(f"  Friendly: {', '.join(friendly)}")
+            if unfriendly:
+                lines.append(f"  Unfriendly: {', '.join(unfriendly)}")
+            if enemies:
+                lines.append(f"  Hostile: {', '.join(enemies)}")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    def _handle_faction_command(self, parts):
+        """Handle /faction command variants."""
+        from models.faction_relations import FactionRelations, FactionRelation
+
+        if not parts:
+            return "Usage: /faction <name> OR /faction relation <A> <B> [relation]"
+
+        # Check for 'relation' subcommand
+        if parts[0].lower() == "relation":
+            if len(parts) < 3:
+                return "Usage: /faction relation <faction_a> <faction_b> [relation]"
+            return self._handle_faction_relation(parts[1:])
+
+        # Show faction details
+        faction_name = " ".join(parts)
+        return self._show_faction(faction_name)
+
+    def _show_faction(self, faction_name):
+        """Show details about a specific faction."""
+        from models.faction_relations import FactionRelations, FactionRelation
+
+        relations = FactionRelations.get_instance()
+        factions = relations.get_all_factions()
+
+        # Find matching faction (case-insensitive)
+        matched = None
+        for f in factions:
+            if f.lower() == faction_name.lower():
+                matched = f
+                break
+
+        if not matched:
+            # Show available factions
+            return f"Unknown faction: {faction_name}\nKnown factions: {', '.join(factions)}"
+
+        lines = [f"\n=== {matched} ===\n"]
+
+        # Relations
+        allies = relations.get_allies(matched)
+        enemies = relations.get_enemies(matched)
+        friendly = relations.get_factions_by_relation(matched, FactionRelation.FRIENDLY)
+        unfriendly = relations.get_factions_by_relation(matched, FactionRelation.UNFRIENDLY)
+
+        lines.append("Relations:")
+        if allies:
+            lines.append(f"  Allied (+2): {', '.join(allies)}")
+        if friendly:
+            lines.append(f"  Friendly (+1): {', '.join(friendly)}")
+        if unfriendly:
+            lines.append(f"  Unfriendly (-1): {', '.join(unfriendly)}")
+        if enemies:
+            lines.append(f"  Hostile (-2): {', '.join(enemies)}")
+
+        # Find members (characters with this affiliation)
+        members = []
+        for char in self.characters.values():
+            affiliations = getattr(char, 'affiliations', [getattr(char, 'affiliation', '')])
+            if matched in affiliations or matched.lower() in [a.lower() for a in affiliations]:
+                members.append(char.name)
+
+        if members:
+            lines.append(f"\nMembers in session: {', '.join(members)}")
+
+        return "\n".join(lines)
+
+    def _handle_faction_relation(self, parts):
+        """View or set relation between two factions."""
+        from models.faction_relations import FactionRelations, FactionRelation
+
+        relations = FactionRelations.get_instance()
+
+        # Parse faction names - could be multi-word
+        # Try to find where faction_b starts
+        faction_a = parts[0]
+        remaining = parts[1:]
+
+        # Check if last part is a relation type
+        relation_types = ['allied', 'friendly', 'neutral', 'unfriendly', 'hostile']
+        new_relation = None
+
+        if remaining and remaining[-1].lower() in relation_types:
+            new_relation_str = remaining[-1].lower()
+            remaining = remaining[:-1]
+            new_relation = FactionRelation(new_relation_str)
+
+        if not remaining:
+            return "Usage: /faction relation <faction_a> <faction_b> [relation]"
+
+        faction_b = " ".join(remaining)
+
+        # If setting new relation
+        if new_relation:
+            relations.set_relation(faction_a, faction_b, new_relation)
+            return f"Set relation: {faction_a} <-> {faction_b}: {new_relation.value}"
+
+        # Just viewing
+        current = relations.get_relation(faction_a, faction_b)
+        modifier = relations.get_relation_modifier(faction_a, faction_b)
+        sign = "+" if modifier > 0 else ""
+
+        return f"{faction_a} <-> {faction_b}: {current.value} ({sign}{modifier})"
+
+    def _add_ally(self, parts):
+        """Add target to character's allies list."""
+        character, remaining = self.parse_character_from_parts(parts)
+        if not character:
+            return f"Character not found. Available: {', '.join(self.characters.keys())}"
+
+        if not remaining:
+            return "Usage: /ally <character> <target>"
+
+        target_name = " ".join(remaining)
+
+        if character.add_ally(target_name):
+            return f"Added {target_name} to {character.name}'s allies."
+        else:
+            return f"{target_name} is already an ally of {character.name}."
+
+    def _add_enemy(self, parts):
+        """Add target to character's enemies list."""
+        character, remaining = self.parse_character_from_parts(parts)
+        if not character:
+            return f"Character not found. Available: {', '.join(self.characters.keys())}"
+
+        if not remaining:
+            return "Usage: /enemy <character> <target>"
+
+        target_name = " ".join(remaining)
+
+        if character.add_enemy(target_name):
+            return f"Added {target_name} to {character.name}'s enemies."
+        else:
+            return f"{target_name} is already an enemy of {character.name}."
+
     def get_help_text(self):
         """Get help text for available commands."""
         return """
@@ -2796,6 +2987,14 @@ PARALLEL SCENES (split party):
   /parallel next            - Switch to next group's scene
   /parallel <number>        - Switch to specific scene
   /parallel rejoin          - Rejoin all groups into one scene
+
+FACTIONS & RELATIONS:
+  /factions                 - List all factions and their relations
+  /faction <name>           - Show faction details (allies, enemies, members)
+  /faction relation <A> <B> - View relation between factions
+  /faction relation <A> <B> <type> - Set relation (allied/friendly/neutral/unfriendly/hostile)
+  /ally <char> <target>     - Add target to character's allies
+  /enemy <char> <target>    - Add target to character's enemies
 
 Examples:
   /campaign new wizard              - Full interactive setup

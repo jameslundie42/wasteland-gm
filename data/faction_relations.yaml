@@ -1,0 +1,74 @@
+# Default faction relations for the Wasteland
+# Relations are symmetric - if A is hostile to B, B is hostile to A
+# Factions not listed default to "neutral"
+#
+# Relation types:
+#   allied    (+2): Fight together, share resources, -20% prices
+#   friendly  (+1): Trade bonuses, willing to help, -10% prices
+#   neutral   ( 0): Default state, base prices
+#   unfriendly(-1): Suspicious, reluctant to help, +10% prices
+#   hostile   (-2): Attack on sight, +25% prices or refuse trade
+
+relations:
+  # NCR - New California Republic
+  NCR:
+    Caesar's Legion: hostile
+    Brotherhood of Steel: unfriendly
+    Traders Guild: friendly
+    Settlers: friendly
+    Raiders: hostile
+    Enclave: hostile
+
+  # Caesar's Legion
+  Caesar's Legion:
+    NCR: hostile
+    Brotherhood of Steel: hostile
+    Traders Guild: unfriendly
+    Settlers: hostile
+    Raiders: friendly
+
+  # Brotherhood of Steel
+  Brotherhood of Steel:
+    Institute: hostile
+    Enclave: hostile
+    NCR: unfriendly
+    Traders Guild: neutral
+    Settlers: neutral
+    Raiders: hostile
+
+  # Raiders
+  Raiders:
+    Settlers: hostile
+    Traders Guild: hostile
+    NCR: hostile
+    Brotherhood of Steel: hostile
+
+  # Settlers
+  Settlers:
+    Traders Guild: friendly
+    NCR: friendly
+    Raiders: hostile
+    Caesar's Legion: hostile
+
+  # Traders Guild
+  Traders Guild:
+    Settlers: friendly
+    NCR: friendly
+    Raiders: hostile
+    Caesar's Legion: unfriendly
+
+  # Enclave
+  Enclave:
+    NCR: hostile
+    Brotherhood of Steel: hostile
+    Settlers: hostile
+
+  # Institute
+  Institute:
+    Brotherhood of Steel: hostile
+    Railroad: hostile
+
+  # Railroad
+  Railroad:
+    Institute: hostile
+    Brotherhood of Steel: unfriendly

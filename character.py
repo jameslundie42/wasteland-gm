@@ -31,11 +31,22 @@ class Character:
                  inventory=None, level=1, experience=0, health=None,
                  radiation=0, conditions=None, body_parts=None, body_type=None,
                  body_part_damage=None, player="GM",
-                 affiliation="Independent", aliases=None, perks=None):
+                 affiliation=None, affiliations=None, aliases=None, perks=None,
+                 allies=None, enemies=None):
         self.name = name
         self.player = player
-        self.affiliation = affiliation
         self.aliases = aliases or []
+        self.allies = allies or []
+        self.enemies = enemies or []
+
+        # Handle affiliations - support both legacy single string and new list format
+        if affiliations is not None:
+            self.affiliations = affiliations if isinstance(affiliations, list) else [affiliations]
+        elif affiliation is not None:
+            # Legacy single affiliation format
+            self.affiliations = [affiliation] if isinstance(affiliation, str) else affiliation
+        else:
+            self.affiliations = ["Independent"]
 
         # Handle both dict and SPECIALStats object for backward compatibility
         if isinstance(special, dict):
@@ -414,12 +425,57 @@ class Character:
 
         return cls(**data)
 
+    @property
+    def affiliation(self):
+        """Primary affiliation for backward compatibility."""
+        return self.affiliations[0] if self.affiliations else "Independent"
+
+    def get_primary_affiliation(self):
+        """Get the character's primary (first) affiliation."""
+        return self.affiliation
+
+    def add_ally(self, name):
+        """Add a character or faction to allies list."""
+        if name not in self.allies:
+            self.allies.append(name)
+            return True
+        return False
+
+    def remove_ally(self, name):
+        """Remove a character or faction from allies list."""
+        if name in self.allies:
+            self.allies.remove(name)
+            return True
+        return False
+
+    def add_enemy(self, name):
+        """Add a character or faction to enemies list."""
+        if name not in self.enemies:
+            self.enemies.append(name)
+            return True
+        return False
+
+    def remove_enemy(self, name):
+        """Remove a character or faction from enemies list."""
+        if name in self.enemies:
+            self.enemies.remove(name)
+            return True
+        return False
+
+    def is_ally(self, name):
+        """Check if name is in allies list (case-insensitive)."""
+        return name.lower() in [a.lower() for a in self.allies]
+
+    def is_enemy(self, name):
+        """Check if name is in enemies list (case-insensitive)."""
+        return name.lower() in [e.lower() for e in self.enemies]
+
     def to_dict(self):
         """Convert character to dictionary for JSON serialization."""
         data = {
             'name': self.name,
             'player': self.player if isinstance(self.player, str) else self.player.name,
-            'affiliation': self.affiliation,
+            'affiliations': self.affiliations,
             'level': self.level,
             'experience': self.experience,
             'special': self.special.to_dict(),
@@ -434,6 +490,10 @@ class Character:
         }
         if self.aliases:
             data['aliases'] = self.aliases
+        if self.allies:
+            data['allies'] = self.allies
+        if self.enemies:
+            data['enemies'] = self.enemies
 
         # Use compact body parts format
         body_data = self.body_parts.to_dict()
@@ -459,6 +519,13 @@ class Character:
         print(f"Player: {self.player}")
         print(f"Level: {self.level}")
         print(f"Experience: {self.experience}")
+
+        # Show affiliations
+        if len(self.affiliations) > 1:
+            print(f"Affiliations: {self.affiliations[0]} (primary), {', '.join(self.affiliations[1:])}")
+        else:
+            print(f"Affiliation: {self.affiliation}")
+
         print(f"\nHealth: {self.health['current']}/{self.health['max']} HP")
         print(f"Radiation: {self.radiation} rads")
 
@@ -472,6 +539,12 @@ class Character:
 
         if self.conditions:
             print(f"\nConditions: {', '.join(self.conditions)}")
+
+        # Show allies and enemies
+        if self.allies:
+            print(f"\nAllies: {', '.join(self.allies)}")
+        if self.enemies:
+            print(f"Enemies: {', '.join(self.enemies)}")
 
         # Show body parts status
         crippled_parts = self.body_parts.get_crippled_parts()
