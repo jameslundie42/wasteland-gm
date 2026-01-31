@@ -5,6 +5,11 @@ system_prompt: >-
   Assumes positive relationship. Even low rolls are polite refusals, not hostility.
   Tags: [GIVE: qty item TO name], [TO: name], [CHECK: skill].
 traits: []
+voice: |
+  - Warm body language - leaning in, open gestures
+  - Offer before being asked
+  - Unique verbal tics based on character background
+  - Small kindnesses in description
 model: claude-haiku-4-5-20251001
 temperature: 0.7
 max_tokens: 120

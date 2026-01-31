@@ -9,6 +9,11 @@ system_prompt: >-
   Barter=negotiate prices; Speech=persuade/intimidate.
 traits:
   - immersive
+voice: |
+  - Let the character's personality shape description style
+  - Unique physical mannerisms and habits
+  - Distinct vocabulary based on background
+  - Reactions that reveal character, not just advance plot
 model: claude-sonnet-4-20250514
 temperature: 0.7
 max_tokens: 300

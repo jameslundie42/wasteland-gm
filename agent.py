@@ -20,11 +20,12 @@ class Agent:
     def __init__(self, name, system_prompt, traits=None, format_rules=None,
                  model="claude-sonnet-4-20250514", temperature=0.7, max_tokens=300,
                  requires_roll=False, roll_prompt="d20", price_modifiers=None,
-                 max_history=10, is_npc=False):
+                 max_history=10, is_npc=False, voice=None):
         self.name = name
         self.system_prompt = system_prompt
         self.traits = traits or []
         self.format_rules = format_rules or []
+        self.voice = voice  # Dialogue style guidance for unique character voice
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -49,11 +50,15 @@ class Agent:
             f"Traits: {traits}.",
             f"Skills: {', '.join(character.skills)}."
         ]
-        
+
         # Include perks if character has them
         if character.perks:
             static_parts.append(f"Perks: {', '.join(character.perks)}.")
-        
+
+        # Include voice/style guidance for distinctive dialogue
+        if self.voice:
+            static_parts.append(f"Voice style:\n{self.voice}")
+
         return "\n".join(static_parts)
 
     def _build_dynamic_system(self, character):
@@ -210,6 +215,8 @@ class Agent:
             "temperature": self.temperature,
             "max_tokens": self.max_tokens
         }
+        if self.voice:
+            data["voice"] = self.voice
         if self.requires_roll:
             data["requires_roll"] = self.requires_roll
             data["roll_prompt"] = self.roll_prompt
