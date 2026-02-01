@@ -42,7 +42,7 @@ A Fallout-themed tabletop RPG framework that orchestrates AI players (Claude via
 - Python 3.8+
 - Anthropic API key (get one at [console.anthropic.com](https://console.anthropic.com))
 
-### Installation
+### Local Installation (Recommended for Development)
 
 1. Clone the repository:
 ```bash
@@ -65,6 +65,24 @@ echo "ANTHROPIC_API_KEY=your_api_key_here" > .env
 ```bash
 python main.py
 ```
+
+### Docker Installation (Optional - Recommended for Consistency/Deployment)
+
+1. Set up your Anthropic API key:
+```bash
+echo "ANTHROPIC_API_KEY=your_api_key_here" > .env
+```
+
+2. Run with Docker Compose:
+```bash
+docker-compose up
+```
+
+The container will:
+- Mount your game data (campaigns, characters, agents) as volumes
+- Persist all changes between sessions
+- Isolate dependencies from your host system
+- Prepare for future multiplayer server deployment
 
 ### Basic Gameplay Flow
 
@@ -267,7 +285,55 @@ wasteland-gm/
 
 ---
 
-## 🛠️ Development
+## � Docker & Deployment
+
+### When to Use Docker
+- **Local Development**: Consistent environment across team members
+- **Deployment**: Easy cloud deployment (AWS, Azure, Heroku, DigitalOcean)
+- **CI/CD Testing**: Automated test runs in isolated environments
+- **Contribution**: Ensure contributors have identical setup
+
+### Local Docker Development
+```bash
+# Build and run
+docker-compose up --build
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down
+
+# Run specific command inside container
+docker-compose exec wasteland-gm python -c "from data.item_database import ItemDatabase; db = ItemDatabase.get_instance(); print(f'Items: {len(db.items)}')"
+```
+
+### Multiplayer Server Mode (Future)
+The Docker setup is prepared for a multiplayer server version:
+
+```yaml
+# Uncomment in docker-compose.yml when ready:
+environment:
+  - SERVER_MODE=true
+  - SERVER_PORT=8080
+ports:
+  - "8080:8080"
+```
+
+Future work:
+- HTTP API wrapper for `Session.gm_narrate()` and `handle_command()`
+- WebSocket support for real-time updates
+- Multi-GM instance coordination
+- Game state persistence to database
+
+### Image Size
+- Base image: `python:3.11-slim` (~150MB)
+- With dependencies: ~200MB total
+- Build time: <1 minute
+
+---
+
+## �🛠️ Development
 
 ### Adding a New Perk
 1. Add entry to `data/perks.yaml`:

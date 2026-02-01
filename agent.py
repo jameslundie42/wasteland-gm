@@ -1,5 +1,117 @@
 import yaml
 import anthropic
+from pathlib import Path
+
+
+# Cache loaded game data at module level
+_skills_data = None
+_perks_data = None
+
+
+def _load_skills_data():
+    """Load skills data from YAML (cached)."""
+    global _skills_data
+    if _skills_data is None:
+        data_dir = Path(__file__).parent / "data"
+        with open(data_dir / "skills.yaml", "r") as f:
+            _skills_data = yaml.safe_load(f).get("skills", {})
+    return _skills_data
+
+
+def _load_perks_data():
+    """Load perks data from YAML (cached)."""
+    global _perks_data
+    if _perks_data is None:
+        data_dir = Path(__file__).parent / "data"
+        with open(data_dir / "perks.yaml", "r") as f:
+            _perks_data = yaml.safe_load(f).get("perks", {})
+    return _perks_data
+
+
+# Static world context to pad cached content (contributes to 1024 token minimum)
+# This comprehensive context ensures the static prompt exceeds Anthropic's caching threshold
+WORLD_CONTEXT = """Setting: Post-apocalyptic Wasteland, 200 years after nuclear war. The Great War of 2077 left the world in ruins. Civilization slowly rebuilds in scattered settlements while mutated creatures, raiders, and old-world dangers lurk in the irradiated wastes. Bottle caps serve as currency. Pre-war technology is valuable and often dangerous. Radiation has created mutants, ghouls, and strange flora. Factions vie for control of resources and territory.
+
+Major Factions:
+- NCR (New California Republic): Democratic government rebuilding civilization, militaristic but lawful
+- Brotherhood of Steel: Tech-hoarding military order, protects dangerous technology from misuse
+- Raiders: Violent gangs that prey on travelers and settlements
+- Settlers: Independent communities trying to survive and rebuild
+- Traders Guild: Merchant caravans connecting settlements, value profit and safe routes
+- Enclave: Remnants of pre-war US government, view wastelanders as impure
+
+Game System: Fallout 2d20 RPG
+- Skill checks use [CHECK: skill_name] tag when attempting difficult actions
+- Use items with [USE: item_name] or [USE: item ON target] tags
+- Give items with [GIVE: quantity item_name TO character] tag
+- Speak in-character, describe actions in third person
+- React to dice roll results when provided
+- Critical success (natural 1): exceptional outcome, generates bonus
+- Complication (natural 20): something goes wrong, even on success
+- Difficulty ranges from 0 (trivial) to 5 (nearly impossible)
+
+SPECIAL Attributes (1-10 scale):
+- Strength: Physical power, melee damage, carry weight, breaking objects
+- Perception: Awareness, accuracy, detecting hidden things, spotting danger
+- Endurance: Stamina, health points, radiation resistance, disease resistance
+- Charisma: Persuasion, bartering, leadership, intimidation
+- Intelligence: Problem-solving, medicine, science, hacking, crafting
+- Agility: Speed, stealth, ranged accuracy, reflexes, dodging
+- Luck: Critical chance, finding items, gambling, general fortune
+
+Common Wasteland Hazards:
+- Radiation: Accumulates from irradiated zones, food, and creatures. High rads cause sickness and death.
+- Dehydration: Clean water is precious. Purified water heals and sustains.
+- Chems: Stimpaks heal wounds. Rad-X protects from radiation. RadAway removes rads. Med-X dulls pain.
+- Creatures: Radroaches, mole rats, feral ghouls, super mutants, deathclaws, and more.
+
+Roleplay Guidelines:
+- Stay in character at all times during the scene
+- Your character has their own knowledge, beliefs, and limitations
+- React authentically to the situation based on your personality and background
+- Use skill check tags [CHECK: skill] when attempting something difficult or uncertain
+- Describe actions clearly so the GM can adjudicate outcomes
+- Collaborate with other characters but maintain your own agency
+- Accept failure gracefully and let it drive interesting story developments
+- Your character can be wrong, scared, or make mistakes
+- Small details and character moments make the story come alive
+
+Combat Considerations:
+- Describe intent and approach, let dice determine outcome
+- Use cover and terrain when available
+- Consider non-combat solutions when appropriate
+- Injuries and conditions affect your capabilities
+- Conserve ammunition and supplies in extended conflicts
+- Retreat is sometimes the wisest choice
+
+Social Interactions:
+- Your reputation precedes you based on faction affiliations
+- Past actions may be remembered by NPCs
+- Barter skill affects prices, Speech affects persuasion
+- Some NPCs may refuse to deal with certain factions
+- Information is valuable currency in the Wasteland
+
+Available Skills Reference:
+- Barter (CHA): Negotiate prices and trade deals, haggle for better rates
+- Speech (CHA): Persuade, intimidate, deceive, or inspire others through words
+- Medicine (INT): Heal wounds, treat conditions, diagnose illness, perform surgery
+- Science (INT): Hack terminals, analyze technology, craft chems, understand pre-war tech
+- Repair (INT): Fix weapons, armor, machines, and jury-rig solutions
+- Lockpick (PER): Open locked containers, doors, and safes without keys
+- Survival (PER): Track creatures, forage for food, navigate wilderness, identify flora/fauna
+- Sneak (AGI): Move unseen and unheard, pickpocket, set ambushes
+- Guns (AGI): Accuracy with firearms, gun maintenance, ammunition identification
+- Melee (AGI): Close combat with bladed and blunt weapons, blocking, parrying
+- Unarmed (STR): Hand-to-hand combat, grappling, martial arts
+- Gambling (LCK): Games of chance, reading opponents, knowing when to fold
+
+Condition Effects:
+- Wounded: Reduced effectiveness until healed
+- Irradiated: Accumulating radiation sickness
+- Exhausted: Penalties to all physical actions
+- Poisoned: Ongoing damage until treated
+- Crippled Limb: Specific penalties based on body part
+- Starving/Dehydrated: Growing desperation for sustenance"""
 
 
 class Agent:
@@ -16,6 +128,9 @@ class Agent:
         max_history: Max exchanges to keep (default 10)
         history: Rolling conversation history
     """
+
+    # Class-level settings
+    debug_cache = False  # Toggle cache usage logging
 
     def __init__(self, name, system_prompt, traits=None, format_rules=None,
                  model="claude-sonnet-4-20250514", temperature=0.7, max_tokens=300,
@@ -42,18 +157,56 @@ class Agent:
         """
         Build the static portion of the system prompt (agent config + character identity).
         This content is stable between calls and benefits from caching.
+
+        Note: Anthropic prompt caching requires minimum 1024 tokens. We include world context,
+        skill descriptions, and perk details to ensure we meet this threshold.
         """
         traits = ", ".join(self.traits + character.personality_traits)
         static_parts = [
+            # World context and game rules (stable, adds ~200 tokens)
+            WORLD_CONTEXT,
+            "",
+            # Agent behavior instructions
             self.system_prompt,
+            "",
+            # Character identity
             f"Character: {character.name}. {character.background}",
             f"Traits: {traits}.",
-            f"Skills: {', '.join(character.skills)}."
         ]
 
-        # Include perks if character has them
+        # Include format rules if agent has them
+        if self.format_rules:
+            static_parts.append("Format rules: " + "; ".join(self.format_rules))
+
+        # Include skill descriptions (adds tokens and context)
+        skills_data = _load_skills_data()
+        skill_descriptions = []
+        for skill in character.skills:
+            skill_info = skills_data.get(skill)
+            if skill_info:
+                desc = skill_info.get("description", "")
+                stat = skill_info.get("stat", "").upper()
+                skill_descriptions.append(f"  - {skill} ({stat}): {desc}")
+            else:
+                skill_descriptions.append(f"  - {skill}")
+
+        if skill_descriptions:
+            static_parts.append("Skills:\n" + "\n".join(skill_descriptions))
+        else:
+            static_parts.append(f"Skills: {', '.join(character.skills)}.")
+
+        # Include full perk descriptions (adds tokens and context)
         if character.perks:
-            static_parts.append(f"Perks: {', '.join(character.perks)}.")
+            perks_data = _load_perks_data()
+            perk_descriptions = []
+            for perk in character.perks:
+                perk_info = perks_data.get(perk)
+                if perk_info:
+                    desc = perk_info.get("description", "")
+                    perk_descriptions.append(f"  - {perk}: {desc}")
+                else:
+                    perk_descriptions.append(f"  - {perk}")
+            static_parts.append("Perks:\n" + "\n".join(perk_descriptions))
 
         # Include voice/style guidance for distinctive dialogue
         if self.voice:
@@ -184,6 +337,13 @@ class Agent:
             system=system,
             messages=messages
         )
+
+        # Debug: Log cache usage when enabled
+        if Agent.debug_cache:
+            usage = response.usage
+            cache_created = getattr(usage, 'cache_creation_input_tokens', 0)
+            cache_read = getattr(usage, 'cache_read_input_tokens', 0)
+            print(f"  [Cache: created={cache_created}, read={cache_read}, input={usage.input_tokens}]")
 
         assistant_text = response.content[0].text
 

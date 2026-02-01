@@ -254,6 +254,32 @@ class Scene:
 
 
 @dataclass
+class SessionEvent:
+    """A logged event during a session."""
+    timestamp: str
+    event_type: str  # narration, action, check, combat, dialogue, etc.
+    description: str
+    characters: list = field(default_factory=list)  # Characters involved
+
+    def to_dict(self):
+        return {
+            "timestamp": self.timestamp,
+            "event_type": self.event_type,
+            "description": self.description,
+            "characters": self.characters
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        return cls(
+            timestamp=data.get("timestamp", ""),
+            event_type=data.get("event_type", ""),
+            description=data.get("description", ""),
+            characters=data.get("characters", [])
+        )
+
+
+@dataclass
 class SessionState:
     """
     A play session - a subset of characters actively involved.
@@ -261,12 +287,17 @@ class SessionState:
     """
     name: str = "Unnamed Session"
     started: str = field(default_factory=lambda: datetime.now().isoformat())
+    ended: str = ""  # Set when session ends
     scenes: list = field(default_factory=list)  # List of Scene objects
     current_scene_index: int = -1
     session_notes: str = ""
 
     # Characters active this session (full load when in scene)
     active_characters: list = field(default_factory=list)  # Names
+
+    # Event log for session summary
+    events: list = field(default_factory=list)  # List of SessionEvent
+    summary: str = ""  # AI-generated or manual summary of session
 
     @property
     def current_scene(self) -> Optional[Scene]:

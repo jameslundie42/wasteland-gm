@@ -1,0 +1,39 @@
+# Docker build artifacts
+__pycache__
+*.pyc
+.Python
+env/
+venv/
+.venv
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+.pytest_cache
+.coverage
+htmlcov/
+
+# Git
+.git
+.gitignore
+
+# CI/CD
+.github/workflows (keep for reference)
+.env (for security)
+
+# Local development
+*.log
+test_*.py
+*.bak
+
+# Campaigns (too large)
+campaigns/

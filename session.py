@@ -537,6 +537,10 @@ class Session:
                 return "Usage: /enemy <character> <target>"
             return self._add_enemy(parts[1:])
 
+        # Settings command
+        elif command == "settings" or command == "set":
+            return self._handle_settings_command(parts[1:])
+
         # Help command
         elif command == "help" or command == "h":
             self._show_help_interactive()
@@ -2911,6 +2915,41 @@ Examples:
         else:
             return f"{target_name} is already an enemy of {character.name}."
 
+    def _handle_settings_command(self, parts):
+        """Handle /settings command to view or change settings."""
+        if not parts:
+            # Show current settings
+            lines = ["\n=== Settings ===\n"]
+            lines.append(f"  npc_dialogue_mode: {self.settings.get('npc_dialogue_mode', 'auto')}")
+            lines.append(f"  debug_cache: {'on' if Agent.debug_cache else 'off'}")
+            lines.append("\nUsage: /settings <name> <value>")
+            lines.append("  /settings npc_dialogue_mode auto|manual")
+            lines.append("  /settings debug_cache on|off")
+            return "\n".join(lines)
+
+        setting_name = parts[0].lower()
+        value = parts[1].lower() if len(parts) > 1 else None
+
+        if setting_name == "npc_dialogue_mode":
+            if value in ("auto", "manual"):
+                self.settings["npc_dialogue_mode"] = value
+                return f"npc_dialogue_mode set to: {value}"
+            else:
+                return "Usage: /settings npc_dialogue_mode auto|manual"
+
+        elif setting_name == "debug_cache":
+            if value in ("on", "true", "1", "yes"):
+                Agent.debug_cache = True
+                return "Cache debugging enabled. API calls will show cache stats."
+            elif value in ("off", "false", "0", "no"):
+                Agent.debug_cache = False
+                return "Cache debugging disabled."
+            else:
+                return "Usage: /settings debug_cache on|off"
+
+        else:
+            return f"Unknown setting: {setting_name}\nAvailable: npc_dialogue_mode, debug_cache"
+
     def _clear_screen(self):
         """Clear the terminal screen."""
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -2924,7 +2963,9 @@ Examples:
   @<char1> @<char2> (text)  - Narrate to multiple characters
   /quit                     - Exit the game
   /characters               - List all active characters
-  /info <character>         - Show detailed character information"""),
+  /info <character>         - Show detailed character information
+  /settings                 - View/change settings
+  /settings debug_cache on  - Show API cache stats"""),
 
             "2": ("Character Creation", """
   /create                   - Show creation help

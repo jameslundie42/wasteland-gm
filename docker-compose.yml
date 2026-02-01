@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  wasteland-gm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wasteland-gm
+    stdin_open: true
+    tty: true
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Persist game data between sessions
+      - ./campaigns:/app/campaigns
+      - ./characters:/app/characters
+      - ./agents:/app/agents
+      - ./data:/app/data
+    # Uncomment below for multiplayer server mode (future)
+    # ports:
+    #   - "8080:8080"
+    # environment:
+    #   - SERVER_MODE=true
+    #   - SERVER_PORT=8080
