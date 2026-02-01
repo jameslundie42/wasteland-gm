@@ -325,20 +325,12 @@ voice: "Dialogue style guidance..."
 char.player = Agent.from_yaml('agents/custom_agent.yaml')
 ```
 
-### Running Tests
-```bash
-# Test items.yaml loading
-python test_items_yaml.py
-
-# Full integration test
-python test_items_integration.py
-```
-
 ---
 
 ## 📚 Key Documentation
 
 - **[Copilot Instructions](.github/copilot-instructions.md)** - Comprehensive AI agent development guide
+- **[Claude Code Instructions](.claude)** - Instructions for Claude Code
 - **Character.from_yaml()** - Load characters from YAML files with full state
 - **Agent.respond()** - Get Claude responses for characters
 - **Session.gm_narrate()** - Process GM narration and character responses
@@ -383,7 +375,7 @@ Characters support multiple input formats for backward compatibility:
 - **Python 3.8+**: Core language
 - **YAML**: Configuration and data format
 - **Anthropic API**: Claude 3.5 Sonnet for AI players
-- **Fallout 2d20 System**: Game mechanics framework (licensed from Modiphius Entertainment)
+- **Fallout 2d20 System**: Game mechanics framework
 
 ---
 
