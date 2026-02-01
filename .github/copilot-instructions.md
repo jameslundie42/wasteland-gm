@@ -93,9 +93,9 @@ doc.player = agent_instance  # Assign controlling agent
 | File | Format | Purpose | Note |
 |------|--------|---------|------|
 | `data/skills.yaml` | Key-value pairs | Skill definitions + SPECIAL mapping | Modify to add skills |
-| `data/perks.yaml` | Nested: name→category/description/requirements/effects | Perk database | Just added; extensible format |
-| `data/items.json` | Nested: name→type/weight/value/effects | Item database | Used by ItemDatabase singleton |
 | `data/actions.yaml` | Named actions with skill requirements | GM action prompts | For skill check triggers |
+| `data/perks.yaml` | Nested: name→category/description/requirements/effects | Perk database | Extensible format |
+| `data/items.yaml` | Nested: name→type/weight/value/effects | Item database | Used by ItemDatabase singleton |
 | `characters/*.yaml` | Full character state snapshot | Player/NPC data | Load with `Character.from_yaml()` |
 | `agents/*.yaml` | Agent config (prompt, traits, model params) | AI behavior definition | Claude model + temperature + history size |
 

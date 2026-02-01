@@ -2,7 +2,7 @@
 Item database manager for loading and creating items.
 """
 
-import json
+import yaml
 import os
 from models.item import Item
 
@@ -19,12 +19,12 @@ class ItemDatabase:
         Initialize item database.
 
         Args:
-            database_path: Path to items.json file
+            database_path: Path to items.yaml file
         """
         if database_path is None:
-            # Default to data/items.json relative to this file
+            # Default to data/items.yaml relative to this file
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            database_path = os.path.join(current_dir, 'items.json')
+            database_path = os.path.join(current_dir, 'items.yaml')
 
         self.database_path = database_path
         self.items = self._load_items()
@@ -46,19 +46,19 @@ class ItemDatabase:
 
     def _load_items(self):
         """
-        Load items from JSON database.
+        Load items from YAML database.
 
         Returns:
             dict: Dictionary of item data
         """
         try:
             with open(self.database_path, 'r') as f:
-                data = json.load(f)
+                data = yaml.safe_load(f)
                 return data.get('items', {})
         except FileNotFoundError:
             print(f"Warning: Item database not found at {self.database_path}")
             return {}
-        except json.JSONDecodeError as e:
+        except yaml.YAMLError as e:
             print(f"Error loading item database: {e}")
             return {}
 
