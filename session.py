@@ -1,4 +1,5 @@
 import re
+import os
 from pathlib import Path
 from commands.inventory_commands import InventoryCommands
 from agent import Agent
@@ -538,7 +539,8 @@ class Session:
 
         # Help command
         elif command == "help" or command == "h":
-            return self.get_help_text()
+            self._show_help_interactive()
+            return ""  # Don't print anything after returning
 
         else:
             return f"Unknown command: /{command}. Type /help for available commands."
@@ -2909,77 +2911,67 @@ Examples:
         else:
             return f"{target_name} is already an enemy of {character.name}."
 
-    def get_help_text(self):
-        """Get help text for available commands."""
-        return """
-=== Available Commands ===
+    def _clear_screen(self):
+        """Clear the terminal screen."""
+        os.system('cls' if os.name == 'nt' else 'clear')
 
-NARRATION:
+    def _get_help_sections(self):
+        """Return help organized into navigable sections."""
+        return {
+            "1": ("Narration & Basics", """
   (type text)               - Narrate to all characters
   @<character> (text)       - Narrate to a specific character
   @<char1> @<char2> (text)  - Narrate to multiple characters
-
-GAME MANAGEMENT:
   /quit                     - Exit the game
-  /help                     - Show this help message
   /characters               - List all active characters
-  /info <character>         - Show detailed character information
+  /info <character>         - Show detailed character information"""),
 
-CHARACTER CREATION:
+            "2": ("Character Creation", """
   /create                   - Show creation help
   /create random [name]     - Generate random character
   /create input             - Interactive character creation
   /create <description>     - AI generates from description
   /create npc random        - Generate random NPC
   /create npc <description> - AI generates NPC from description
-  /load <file> [agent]      - Load character from YAML, optionally assign agent
+  /load <file> [agent]      - Load character from YAML, optionally assign agent"""),
 
-INVENTORY:
+            "3": ("Inventory & Items", """
   /inventory <character>    - Show character's inventory
   /inv <character>          - Short form of /inventory
   /give <character> <item> [qty] - Give item to character
   /take <character> <item> [qty] - Take item from character
   /use <character> <item>   - Use item on self
-  /use <character> <item> on <target> - Use item on another character
-  /use <character> <item> on <target> <part> - Use item on target's body part
+  /use <char> <item> on <target> - Use item on another character
+  /use <char> <item> on <target> <part> - Use on body part
   /weight <character>       - Show carry weight info
-  /items                    - List all available items
+  /items                    - List all available items"""),
 
-BODY PARTS:
+            "4": ("Combat & Checks", """
   /bodyparts <character>    - Show body parts status
-  /limbs <character>        - Alias for /bodyparts
-  /damage <character> <part> <amt> - Damage a specific body part
-
-SKILL CHECKS:
+  /damage <char> <part> <amt> - Damage a specific body part
   /check <character> <skill> - Manually trigger a skill check
-
-CAMPAIGN (for context management):
-  /campaign                 - Show campaign/session/scene status
-  /campaign new [name]      - Create new campaign (quick)
-  /campaign new wizard      - Interactive campaign setup wizard
-  /campaign save            - Save campaign to file
-  /campaign load <file>     - Load campaign from file
-  /campaign session [name]  - Start new session in campaign
-  /campaign sync            - Register loaded characters with campaign
-
-SCENE:
-  /scene                    - Show current scene status
-  /scene new <name> [loc]   - Create new scene
-  /scene set location <loc> - Set scene location
-  /scene list               - List all scenes in session
-  /enter <character>        - Bring character into scene
-  /exit <character>         - Remove character from scene
-
-COMBAT:
   /combat start             - Begin combat in current scene
   /combat end               - End combat
   /combat add <char>        - Add combatant
   /combat remove <char>     - Remove combatant
   /next                     - Advance to next turn
   /turn action              - Use a major action
-  /turn minor               - Use a minor action
+  /turn minor               - Use a minor action"""),
 
-CREATURES:
+            "5": ("Campaign & Scenes", """
+  /campaign                 - Show campaign/session/scene status
+  /campaign new [name]      - Create new campaign (quick)
+  /campaign new wizard      - Interactive campaign setup wizard
+  /campaign save            - Save campaign to file
+  /campaign load <file>     - Load campaign from file
+  /campaign session [name]  - Start new session in campaign
+  /scene                    - Show current scene status
+  /scene new <name> [loc]   - Create new scene
+  /scene set location <loc> - Set scene location
+  /enter <character>        - Bring character into scene
+  /exit <character>         - Remove character from scene"""),
+
+            "6": ("Creatures & NPCs", """
   /spawn <template> [count] - Spawn creature(s) from template
   /spawn list [category]    - List available templates
   /spawn boss <template> <name> - Spawn unique boss creature
@@ -2990,50 +2982,127 @@ CREATURES:
   /loot <creature>          - Show loot from dead creature
   /loot <creature> to <char>- Give loot to character
   /agent                    - List available NPC agents
-  /agent <target> <agent>   - Change creature/character agent
+  /agent <target> <agent>   - Change creature/character agent"""),
 
-TABLE STATE (play flow management):
+            "7": ("Table & Spotlight", """
   /table                    - Show current table state
   /spotlight <character>    - Give spotlight to character (only they respond)
   /spotlight                - Clear spotlight (return to group)
   /state <char> <action>    - Set what a character is currently doing
-  /around [question]        - Go around table, each PC responds in turn
-  @<name> <text>            - Direct narration to specific character(s)
+  /around [question]        - Go around table, each PC responds in turn"""),
 
-PARTY VOTING:
+            "8": ("Voting & Split Party", """
   /vote <question>          - Start majority vote (party acts together)
   /vote split <question>    - Start split vote (party can divide)
   /vote status              - Show current vote
   /vote resolve             - Apply vote results
   /vote cancel              - Cancel current vote
-
-PARALLEL SCENES (split party):
   /parallel                 - Show parallel scene status
   /parallel next            - Switch to next group's scene
   /parallel <number>        - Switch to specific scene
-  /parallel rejoin          - Rejoin all groups into one scene
+  /parallel rejoin          - Rejoin all groups into one scene"""),
 
-FACTIONS & RELATIONS:
+            "9": ("Factions & Relations", """
   /factions                 - List all factions and their relations
   /faction <name>           - Show faction details (allies, enemies, members)
   /faction relation <A> <B> - View relation between factions
-  /faction relation <A> <B> <type> - Set relation (allied/friendly/neutral/unfriendly/hostile)
+  /faction relation <A> <B> <type> - Set relation type
+                              (allied/friendly/neutral/unfriendly/hostile)
   /ally <char> <target>     - Add target to character's allies
-  /enemy <char> <target>    - Add target to character's enemies
+  /enemy <char> <target>    - Add target to character's enemies"""),
+        }
 
-Examples:
-  /campaign new wizard              - Full interactive setup
-  /campaign new Wasteland Adventures - Quick campaign creation
-  /scene new Dusty Crossroads Outside Megaton
-  /enter Jack
-  /combat start
-  /spawn Raider 3
-  /damage "Raider #1" torso 15
-  /loot "Raider #1" to Jack
-  /promote "Raider #2" Scarface
-  /next
-  /table                            - See who's doing what
-  /spotlight Elena                  - Focus on Elena only
-  @Elena You spot movement          - Direct narration to Elena
-  /around What do you all think?    - Each PC responds in turn
-"""
+    def _show_help_interactive(self):
+        """Display interactive help menu with navigation."""
+        sections = self._get_help_sections()
+        current_view = "menu"  # "menu" or section number
+
+        while True:
+            self._clear_screen()
+
+            if current_view == "menu":
+                print("=" * 50)
+                print("                    HELP MENU")
+                print("=" * 50)
+                print()
+                for key, (title, _) in sections.items():
+                    print(f"  [{key}] {title}")
+                print()
+                print("-" * 50)
+                print("  [a] Show all commands")
+                print("  [q] Return to game")
+                print("-" * 50)
+                choice = input("\nSelect section: ").strip().lower()
+
+                if choice == 'q' or choice == 'quit' or choice == 'exit':
+                    self._clear_screen()
+                    return
+                elif choice == 'a' or choice == 'all':
+                    current_view = "all"
+                elif choice in sections:
+                    current_view = choice
+            elif current_view == "all":
+                print("=" * 50)
+                print("               ALL COMMANDS")
+                print("=" * 50)
+                for key, (title, content) in sections.items():
+                    print(f"\n--- {title} ---")
+                    print(content)
+                print()
+                print("-" * 50)
+                print("  [b] Back to menu    [q] Return to game")
+                print("-" * 50)
+                choice = input("\nSelect: ").strip().lower()
+
+                if choice == 'q' or choice == 'quit' or choice == 'exit':
+                    self._clear_screen()
+                    return
+                elif choice == 'b' or choice == 'back' or choice == 'menu':
+                    current_view = "menu"
+            else:
+                # Showing a specific section
+                title, content = sections[current_view]
+                print("=" * 50)
+                print(f"  {title.upper()}")
+                print("=" * 50)
+                print(content)
+                print()
+                print("-" * 50)
+                print("  [b] Back to menu    [q] Return to game")
+
+                # Show prev/next navigation
+                keys = list(sections.keys())
+                idx = keys.index(current_view)
+                nav = []
+                if idx > 0:
+                    nav.append(f"[p] Prev: {sections[keys[idx-1]][0]}")
+                if idx < len(keys) - 1:
+                    nav.append(f"[n] Next: {sections[keys[idx+1]][0]}")
+                if nav:
+                    print("  " + "    ".join(nav))
+
+                print("-" * 50)
+                choice = input("\nSelect: ").strip().lower()
+
+                if choice == 'q' or choice == 'quit' or choice == 'exit':
+                    self._clear_screen()
+                    return
+                elif choice == 'b' or choice == 'back' or choice == 'menu':
+                    current_view = "menu"
+                elif choice == 'p' or choice == 'prev':
+                    if idx > 0:
+                        current_view = keys[idx - 1]
+                elif choice == 'n' or choice == 'next':
+                    if idx < len(keys) - 1:
+                        current_view = keys[idx + 1]
+                elif choice in sections:
+                    current_view = choice
+
+    def get_help_text(self):
+        """Get help text for available commands (legacy method)."""
+        sections = self._get_help_sections()
+        lines = ["=== Available Commands ==="]
+        for title, content in sections.values():
+            lines.append(f"\n{title.upper()}:")
+            lines.append(content)
+        return "\n".join(lines)

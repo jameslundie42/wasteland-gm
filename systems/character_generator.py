@@ -91,26 +91,34 @@ class CharacterGenerator:
             dict: Character data ready for Character constructor
         """
         char_type = "NPC" if is_npc else "player character"
+        skills_list = ", ".join(AVAILABLE_SKILLS)
+        affiliations_list = ", ".join(AFFILIATIONS)
 
         prompt = f"""Generate a Fallout RPG {char_type} based on this description:
 
 "{description}"
 
-Return a JSON object with these fields:
-- name: Full character name
-- aliases: Array of 1-3 short names/nicknames (first name, last name, or nickname)
-- affiliation: One of {AFFILIATIONS}
-- special: Object with strength, perception, endurance, charisma, intelligence, agility, luck (each 1-10, total should be ~28)
-- skills: Array of 2-4 skills from {AVAILABLE_SKILLS} that fit the character
-- background: 2-3 sentence backstory
-- personality_traits: Array of 2-4 brief personality traits (5-10 words each)
-- inventory: Array of starting items like ["10mm Pistol", "Stimpak x2", "Bottle Caps x50"]
+Return a JSON object with exactly this structure:
+{{
+  "name": "Full Name",
+  "aliases": ["Nickname1", "Nickname2"],
+  "affiliation": "Faction",
+  "special": {{"strength": 5, "perception": 5, "endurance": 5, "charisma": 5, "intelligence": 5, "agility": 5, "luck": 5}},
+  "skills": ["Skill1", "Skill2"],
+  "background": "2-3 sentence backstory",
+  "personality_traits": ["trait one", "trait two"],
+  "inventory": ["Item1", "Stimpak x2", "Bottle Caps x50"]
+}}
 
-Respond with ONLY valid JSON, no explanation."""
+Valid affiliations: {affiliations_list}
+Valid skills: {skills_list}
+SPECIAL stats should be 1-10 each, total ~28 points.
+
+IMPORTANT: Return ONLY the JSON object, no other text."""
 
         response = self.client.messages.create(
             model="claude-haiku-4-5-20251001",
-            max_tokens=500,
+            max_tokens=600,
             temperature=0.7,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -118,16 +126,30 @@ Respond with ONLY valid JSON, no explanation."""
         try:
             # Parse JSON response
             json_text = response.content[0].text.strip()
+
             # Handle potential markdown code blocks
-            if json_text.startswith("```"):
-                json_text = json_text.split("```")[1]
-                if json_text.startswith("json"):
-                    json_text = json_text[4:]
+            if "```" in json_text:
+                # Extract content between code blocks
+                parts = json_text.split("```")
+                for part in parts:
+                    part = part.strip()
+                    if part.startswith("json"):
+                        part = part[4:].strip()
+                    if part.startswith("{"):
+                        json_text = part
+                        break
+
+            # Find the JSON object boundaries
+            start = json_text.find("{")
+            end = json_text.rfind("}") + 1
+            if start != -1 and end > start:
+                json_text = json_text[start:end]
+
             data = json.loads(json_text)
 
             # Validate and sanitize
             return self._validate_character_data(data)
-        except (json.JSONDecodeError, KeyError) as e:
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
             print(f"  [AI generation failed: {e}. Falling back to random.]")
             return self.generate_random(is_npc=is_npc)
 
