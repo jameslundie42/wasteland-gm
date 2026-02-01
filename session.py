@@ -506,6 +506,14 @@ class Session:
         elif command == "parallel":
             return self._handle_parallel_command(parts[1:])
 
+        # === SKILL CHECK COMMANDS ===
+
+        # Manual skill check
+        elif command == "check":
+            if len(parts) < 3:
+                return "Usage: /check <character> <skill>"
+            return self._manual_check(parts[1:])
+
         # === FACTION COMMANDS ===
 
         # List all factions
@@ -844,6 +852,24 @@ class Session:
                 return int(result)
             except ValueError:
                 print("  Enter a number.")
+
+    def _manual_check(self, parts):
+        """
+        Manually trigger a skill check for a character.
+        Usage: /check <character> <skill>
+        """
+        character, remaining = self.parse_character_from_parts(parts)
+        if not character:
+            return f"Character not found. Available: {', '.join(self.characters.keys())}"
+
+        if not remaining:
+            return "Usage: /check <character> <skill>"
+
+        skill_name = " ".join(remaining)
+
+        # Process the check using existing logic
+        results = self._process_checks(character, [skill_name])
+        return "\n".join(results) if results else f"{character.name} completed {skill_name} check."
 
     def _parse_actions(self, response):
         """Parse [USE: item_name] action tags from a response."""
@@ -2284,11 +2310,7 @@ class Session:
                     agent_prompt += f"{context}\n\n"
                 agent_prompt += "It's your turn to respond. What do you do or say?"
 
-                response = char.player.respond(
-                    agent_prompt,
-                    char,
-                    self.get_scene_characters()
-                )
+                response = char.player.respond(char, agent_prompt)
 
                 # Update table state
                 action_summary = extract_action_from_response(response)
@@ -2927,6 +2949,9 @@ BODY PARTS:
   /bodyparts <character>    - Show body parts status
   /limbs <character>        - Alias for /bodyparts
   /damage <character> <part> <amt> - Damage a specific body part
+
+SKILL CHECKS:
+  /check <character> <skill> - Manually trigger a skill check
 
 CAMPAIGN (for context management):
   /campaign                 - Show campaign/session/scene status
